@@ -1,0 +1,292 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================ */
+/* GLOBAL DARK MODE STYLES                      */
+/* ============================================ */
+
+html.dark {
+  color-scheme: dark;
+}
+
+/* Body */
+html.dark body {
+  background-color: #111827;
+  color: #f3f4f6;
+}
+
+/* ============================================ */
+/* BACKGROUND COLORS                            */
+/* ============================================ */
+
+/* Main backgrounds */
+html.dark .bg-gray-50,
+html.dark .bg-gray-100 {
+  background-color: #111827 !important;
+}
+
+/* Card/white backgrounds */
+html.dark .bg-white {
+  background-color: #1f2937 !important;
+}
+
+/* Slate backgrounds */
+html.dark .bg-slate-50,
+html.dark .bg-slate-100 {
+  background-color: #1f2937 !important;
+}
+
+/* Pastel backgrounds - make darker */
+html.dark .bg-pastel-green,
+html.dark .bg-pastel-green\/30,
+html.dark .bg-pastel-green\/20,
+html.dark .bg-pastel-green\/10 {
+  background-color: rgba(16, 185, 129, 0.15) !important;
+}
+
+html.dark .bg-pastel-orange,
+html.dark .bg-pastel-orange\/30,
+html.dark .bg-pastel-orange\/20,
+html.dark .bg-pastel-orange\/10 {
+  background-color: rgba(245, 158, 11, 0.15) !important;
+}
+
+html.dark .bg-pastel-yellow,
+html.dark .bg-pastel-yellow\/30,
+html.dark .bg-pastel-yellow\/20,
+html.dark .bg-pastel-yellow\/10 {
+  background-color: rgba(254, 243, 199, 0.1) !important;
+}
+
+/* ============================================ */
+/* TEXT COLORS                                  */
+/* ============================================ */
+
+/* Dark text → light text */
+html.dark .text-dark-text {
+  color: #f3f4f6 !important;
+}
+
+/* Light text → lighter gray */
+html.dark .text-light-text {
+  color: #9ca3af !important;
+}
+
+/* Slate text */
+html.dark .text-slate-900,
+html.dark .text-slate-800,
+html.dark .text-slate-700 {
+  color: #f3f4f6 !important;
+}
+
+html.dark .text-slate-600,
+html.dark .text-slate-500 {
+  color: #9ca3af !important;
+}
+
+/* Gray text */
+html.dark .text-gray-900,
+html.dark .text-gray-800,
+html.dark .text-gray-700 {
+  color: #f3f4f6 !important;
+}
+
+html.dark .text-gray-600,
+html.dark .text-gray-500 {
+  color: #9ca3af !important;
+}
+
+html.dark .text-gray-400 {
+  color: #6b7280 !important;
+}
+
+/* ============================================ */
+/* BORDER COLORS                                */
+/* ============================================ */
+
+html.dark .border-gray-100,
+html.dark .border-gray-200,
+html.dark .border-gray-300 {
+  border-color: #374151 !important;
+}
+
+html.dark .border-slate-100,
+html.dark .border-slate-200 {
+  border-color: #374151 !important;
+}
+
+html.dark .border-pastel-green {
+  border-color: rgba(16, 185, 129, 0.3) !important;
+}
+
+/* ============================================ */
+/* HOVER STATES                                 */
+/* ============================================ */
+
+html.dark .hover\:bg-gray-50:hover,
+html.dark .hover\:bg-gray-100:hover,
+html.dark .hover\:bg-slate-50:hover,
+html.dark .hover\:bg-slate-100:hover {
+  background-color: #374151 !important;
+}
+
+html.dark .hover\:bg-pastel-orange\/20:hover {
+  background-color: rgba(245, 158, 11, 0.1) !important;
+}
+
+/* ============================================ */
+/* INPUTS & FORMS                               */
+/* ============================================ */
+
+html.dark input,
+html.dark textarea,
+html.dark select {
+  background-color: #1f2937 !important;
+  color: #f3f4f6 !important;
+  border-color: #374151 !important;
+}
+
+html.dark input::placeholder,
+html.dark textarea::placeholder {
+  color: #6b7280 !important;
+}
+
+html.dark input:focus,
+html.dark textarea:focus,
+html.dark select:focus {
+  border-color: #10b981 !important;
+}
+
+/* ============================================ */
+/* TABLES                                       */
+/* ============================================ */
+
+html.dark table thead {
+  background-color: rgba(16, 185, 129, 0.15) !important;
+}
+
+html.dark table tbody tr:hover {
+  background-color: rgba(245, 158, 11, 0.1) !important;
+}
+
+html.dark table tbody tr {
+  border-color: #374151 !important;
+}
+
+/* ============================================ */
+/* MODALS & DROPDOWNS                           */
+/* ============================================ */
+
+html.dark .shadow-md,
+html.dark .shadow-lg,
+html.dark .shadow-xl {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5), 0 2px 4px -1px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* ============================================ */
+/* SCROLLBAR                                    */
+/* ============================================ */
+
+html.dark ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+html.dark ::-webkit-scrollbar-track {
+  background: #1f2937;
+}
+
+html.dark ::-webkit-scrollbar-thumb {
+  background: #4b5563;
+  border-radius: 4px;
+}
+
+html.dark ::-webkit-scrollbar-thumb:hover {
+  background: #6b7280;
+}
+
+/* ============================================ */
+/* SPECIFIC COMPONENT FIXES                     */
+/* ============================================ */
+
+/* Navbar */
+html.dark nav.bg-white {
+  background-color: #1f2937 !important;
+  border-color: #374151 !important;
+}
+
+/* Dropdown menus */
+html.dark .rounded-xl.bg-white,
+html.dark .rounded-lg.bg-white {
+  background-color: #1f2937 !important;
+  border-color: #374151 !important;
+}
+
+/* Cards */
+html.dark .rounded-lg.shadow-md {
+  background-color: #1f2937 !important;
+  border-color: #374151 !important;
+}
+
+/* Smooth transition */
+* {
+  transition-property: background-color, border-color, color;
+  transition-duration: 200ms;
+  transition-timing-function: ease-in-out;
+}
+
+/* ============================================ */
+/* DARK MODE NATIVE DROPDOWN FIX                */
+/* ============================================ */
+/* Fixes the white <option> list in date/time/select dropdowns */
+
+html.dark select,
+html.dark select option {
+  color-scheme: dark;
+  background-color: #1f2937;
+  color: #f3f4f6;
+}
+
+html.dark input[type="date"],
+html.dark input[type="time"],
+html.dark input[type="datetime-local"] {
+  color-scheme: dark;
+}
+
+/* Keep light mode normal */
+select option {
+  background-color: #ffffff;
+  color: #1f2937;
+}
+
+/* ============================================ */
+/* ✅ HERO — ANIMATED GRADIENT FALLBACK         */
+/* ============================================ */
+/* Used on the Landing Page hero section
+   Shows while video loads, or if the video fails */
+
+.hero-animated-gradient {
+  background: linear-gradient(
+    -45deg,
+    #10b981,
+    #059669,
+    #f59e0b,
+    #fbbf24,
+    #10b981
+  );
+  background-size: 400% 400%;
+  animation: heroGradient 15s ease infinite;
+}
+
+@keyframes heroGradient {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
