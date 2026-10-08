@@ -16,48 +16,56 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    const initializeAuth = async () => {
-      const token = localStorage.getItem('token');
+ useEffect(() => {
+  const initializeAuth = async () => {
+    const token = localStorage.getItem('token');
 
-      // ✅ Try to fetch user with existing token first
-      if (token) {
-        try {
-          const response = await authAPI.getMe();
-          const userData = response.data.user;
-          setUser(userData);
-          localStorage.setItem('user', JSON.stringify(userData));
-          setLoading(false);
-          return;
-        } catch (err) {
-          // Token invalid/expired → clear and fall through to refresh
+    // Try to fetch user with existing token first
+    if (token) {
+      try {
+        const response = await authAPI.getMe();
+        const userData = response.data.user;
+        setUser(userData);
+        localStorage.setItem('user', JSON.stringify(userData));
+        setLoading(false);
+        return;
+      } catch (err) {
+        // ✅ Only clear tokens on real auth failures, not rate limits
+        if (err.response?.status === 401 || err.response?.status === 403) {
           localStorage.removeItem('token');
           localStorage.removeItem('user');
+        } else {
+          // Rate limit or network error → keep tokens, try refresh below
+          console.warn('getMe failed (non-auth error):', err.message);
         }
       }
+    }
 
-      // ✅ Try refresh cookie if no valid access token
-      try {
-        const response = await axios.post(
-          'https://valeenvista-backend.onrender.com/api/auth/refresh',
-          {},
-          { withCredentials: true }
-        );
+    // Try refresh cookie if no valid access token
+    try {
+      const response = await axios.post(
+        'https://valeenvista-backend.onrender.com/api/auth/refresh',
+        {},
+        { withCredentials: true }
+      );
 
-        localStorage.setItem('token', response.data.token);
-        localStorage.setItem('user', JSON.stringify(response.data.user));
-        setUser(response.data.user);
-      } catch (err) {
-        // No valid refresh token — user stays logged out
+      localStorage.setItem('token', response.data.token);
+      localStorage.setItem('user', JSON.stringify(response.data.user));
+      setUser(response.data.user);
+    } catch (err) {
+      // ✅ Only clear if it's really an invalid refresh token
+      if (err.response?.status === 401 || err.response?.status === 403) {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
-      } finally {
-        setLoading(false);
       }
-    };
+      // Rate limit → keep what we have, user stays as-is
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    initializeAuth();
-  }, []);
+  initializeAuth();
+}, []);
 
   const fetchCurrentUser = async () => {
     try {
