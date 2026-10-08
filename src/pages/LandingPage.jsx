@@ -16,7 +16,7 @@ import { propertyAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
 // ✅ APK download URL — Expo build page
-const APK_DOWNLOAD_URL = 'https://github.com/officialfirstaidapp-ops/valeen/releases/download/v1.0.0/valeenvista.apk';
+const APK_DOWNLOAD_URL = 'https://github.com/officialfirstaidapp-ops/valeen/releases/download/v1.0.1/app-release.apk';
 
 const LandingPage = () => {
   const { user } = useAuth();
