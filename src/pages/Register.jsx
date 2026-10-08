@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Building2, Mail, Lock, User, UserPlus, Phone } from 'lucide-react';
+import { Building2, Mail, Lock, User, UserPlus, Phone, Eye, EyeOff } from 'lucide-react';
 
 const Register = () => {
   const [formData, setFormData] = useState({
@@ -11,13 +11,14 @@ const Register = () => {
     confirmPassword: '',
     phone: ''
   });
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   const { register, user } = useAuth();
   const navigate = useNavigate();
 
-  // Redirect if already logged in
   useEffect(() => {
     if (user) {
       if (user.role === 'admin') navigate('/admin');
@@ -28,7 +29,6 @@ const Register = () => {
     }
   }, [user, navigate]);
 
-  // Handle Google OAuth error from URL
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('error') === 'google_failed') {
@@ -76,7 +76,6 @@ const Register = () => {
     setLoading(false);
   };
 
-  // ✅ Redirect to backend Google OAuth
   const handleGoogleSignUp = () => {
     window.location.href = 'https://valeenvista-backend.onrender.com/api/auth/google';
   };
@@ -84,7 +83,6 @@ const Register = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-pastel-green/30 via-pastel-yellow/20 to-pastel-orange/30 flex items-center justify-center p-4">
       <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-8 border border-pastel-green">
-        {/* Logo */}
         <div className="flex justify-center mb-8">
           <div className="flex items-center gap-2">
             <Building2 className="text-soft-green" size={40} />
@@ -101,7 +99,6 @@ const Register = () => {
           </div>
         )}
 
-        {/* ✅ Google Sign Up Button */}
         <button
           type="button"
           onClick={handleGoogleSignUp}
@@ -116,7 +113,6 @@ const Register = () => {
           Continue with Google
         </button>
 
-        {/* Divider */}
         <div className="flex items-center gap-3 mb-6">
           <div className="flex-1 h-px bg-gray-200"></div>
           <span className="text-sm text-light-text">or sign up with email</span>
@@ -189,13 +185,22 @@ const Register = () => {
               <input
                 id="password"
                 name="password"
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 value={formData.password}
                 onChange={handleChange}
-                className="w-full pl-10 pr-4 py-2 border border-pastel-green rounded-lg focus:outline-none focus:border-soft-green focus:ring-1 focus:ring-soft-green bg-pastel-yellow/20"
+                className="w-full pl-10 pr-10 py-2 border border-pastel-green rounded-lg focus:outline-none focus:border-soft-green focus:ring-1 focus:ring-soft-green bg-pastel-yellow/20"
                 placeholder="Create a password"
                 required
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-light-text hover:text-soft-green"
+                tabIndex={-1}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
             </div>
           </div>
 
@@ -208,13 +213,22 @@ const Register = () => {
               <input
                 id="confirmPassword"
                 name="confirmPassword"
-                type="password"
+                type={showConfirmPassword ? 'text' : 'password'}
                 value={formData.confirmPassword}
                 onChange={handleChange}
-                className="w-full pl-10 pr-4 py-2 border border-pastel-green rounded-lg focus:outline-none focus:border-soft-green focus:ring-1 focus:ring-soft-green bg-pastel-yellow/20"
+                className="w-full pl-10 pr-10 py-2 border border-pastel-green rounded-lg focus:outline-none focus:border-soft-green focus:ring-1 focus:ring-soft-green bg-pastel-yellow/20"
                 placeholder="Confirm your password"
                 required
               />
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-light-text hover:text-soft-green"
+                tabIndex={-1}
+                aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+              >
+                {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
             </div>
           </div>
 
