@@ -388,7 +388,7 @@ const AdminReservations = () => {
                         <p className="text-xs text-light-text dark:text-gray-400">Uploaded by: {attachment.uploaded_by_name || 'Agent'} · {formatDate(attachment.created_at)}</p>
                       </div>
                     </div>
-                    <a href={`http://localhost:5000${attachment.filepath}`} target="_blank" rel="noopener noreferrer" className="p-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition text-sm flex items-center gap-1">
+                    <a href={`https://valeenvista-backend.onrender.com${attachment.filepath}`} target="_blank" rel="noopener noreferrer" className="p-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition text-sm flex items-center gap-1">
                       <Eye size={14} />View
                     </a>
                   </div>

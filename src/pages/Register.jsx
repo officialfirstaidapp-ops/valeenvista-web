@@ -78,7 +78,7 @@ const Register = () => {
 
   // ✅ Redirect to backend Google OAuth
   const handleGoogleSignUp = () => {
-    window.location.href = 'http://localhost:5000/api/auth/google';
+    window.location.href = 'https://valeenvista-backend.onrender.com/api/auth/google';
   };
 
   return (

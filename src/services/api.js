@@ -2,11 +2,11 @@ import axios from 'axios';
 
 // ============================================
 // Environment-aware API URL
-// - Local dev: http://localhost:5000/api
+// - Local dev: https://valeenvista-backend.onrender.com/api
 // - Production (Netlify): https://valeenvista-backend.onrender.com/api
 // ============================================
 const API_URL =
-  process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+  process.env.REACT_APP_API_URL || 'https://valeenvista-backend.onrender.com/api';
 
 // ============================================
 // Axios instance

@@ -78,8 +78,8 @@ const AgentProperties = () => {
   const getImageUrl = (imagePath) => {
     if (!imagePath) return 'https://via.placeholder.com/400x300?text=No+Image';
     if (imagePath.startsWith('http')) return imagePath;
-    if (imagePath.startsWith('/uploads/')) return `http://localhost:5000${imagePath}`;
-    return `http://localhost:5000/uploads/properties/${imagePath}`;
+    if (imagePath.startsWith('/uploads/')) return `https://valeenvista-backend.onrender.com${imagePath}`;
+    return `https://valeenvista-backend.onrender.com/uploads/properties/${imagePath}`;
   };
 
   const getStatusBadge = (status) => {

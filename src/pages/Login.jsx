@@ -52,7 +52,7 @@ const Login = () => {
 
   // ✅ Google OAuth: redirect to backend
   const handleGoogleLogin = () => {
-    window.location.href = 'http://localhost:5000/api/auth/google';
+    window.location.href = 'https://valeenvista-backend.onrender.com/api/auth/google';
   };
 
   return (

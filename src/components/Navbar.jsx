@@ -75,7 +75,7 @@ const Navbar = () => {
   const getAvatarUrl = (avatarPath) => {
     if (!avatarPath) return null;
     if (avatarPath.startsWith('http')) return avatarPath;
-    return `http://localhost:5000${avatarPath}`;
+    return `https://valeenvista-backend.onrender.com${avatarPath}`;
   };
 
   const getDashboardLink = () => {

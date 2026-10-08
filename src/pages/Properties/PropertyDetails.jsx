@@ -42,7 +42,7 @@ const PropertyDetails = () => {
   const getImageUrl = (imagePath) => {
     if (!imagePath) return 'https://via.placeholder.com/800x500';
     if (imagePath.startsWith('http')) return imagePath;
-    return `http://localhost:5000${imagePath}`;
+    return `https://valeenvista-backend.onrender.com${imagePath}`;
   };
 
   const getBackLink = () => {

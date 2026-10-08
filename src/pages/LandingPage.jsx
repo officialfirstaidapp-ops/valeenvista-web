@@ -39,7 +39,7 @@ const LandingPage = () => {
   const getImageUrl = (imagePath) => {
     if (!imagePath) return 'https://via.placeholder.com/400x300';
     if (imagePath.startsWith('http')) return imagePath;
-    return `http://localhost:5000${imagePath}`;
+    return `https://valeenvista-backend.onrender.com${imagePath}`;
   };
 
   useEffect(() => {

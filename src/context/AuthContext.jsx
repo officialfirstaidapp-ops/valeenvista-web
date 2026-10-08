@@ -39,7 +39,7 @@ export const AuthProvider = ({ children }) => {
       // ✅ Try refresh cookie if no valid access token
       try {
         const response = await axios.post(
-          'http://localhost:5000/api/auth/refresh',
+          'https://valeenvista-backend.onrender.com/api/auth/refresh',
           {},
           { withCredentials: true }
         );

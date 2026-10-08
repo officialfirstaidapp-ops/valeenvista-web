@@ -445,7 +445,7 @@ const AgentReservations = () => {
                       </div>
                     </div>
                     <div className="flex gap-2">
-                      <a href={`http://localhost:5000${attachment.filepath}`} target="_blank" rel="noopener noreferrer" className="p-1 text-blue-500 hover:text-blue-700 transition"><Eye size={18} /></a>
+                      <a href={`https://valeenvista-backend.onrender.com${attachment.filepath}`} target="_blank" rel="noopener noreferrer" className="p-1 text-blue-500 hover:text-blue-700 transition"><Eye size={18} /></a>
                       <button onClick={() => handleDeleteAttachment(attachment.id)} className="p-1 text-red-500 hover:text-red-700 transition"><Trash2 size={18} /></button>
                     </div>
                   </div>
