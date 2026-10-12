@@ -21,8 +21,6 @@ import {
   Camera,
   Trash2,
   AlertCircle,
-  Video,
-  DollarSign,
   History,
   CreditCard
 } from 'lucide-react';
@@ -56,7 +54,6 @@ const ClientDashboard = () => {
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
 
-  const [startingCall, setStartingCall] = useState(null);
 
   // ✅ Payment modal state
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -181,19 +178,6 @@ const ClientDashboard = () => {
     }
   };
 
-  const handleStartVideoCall = async (reservation) => {
-    setStartingCall(reservation.id);
-    try {
-      const response = await reservationAPI.getVideoRoom(reservation.id);
-      navigate(`/video-call/${response.data.roomName}`);
-    } catch (error) {
-      console.error('Failed to start video call:', error);
-      setErrorMessage(error.response?.data?.error || 'Failed to start video call');
-      setTimeout(() => setErrorMessage(''), 4000);
-    } finally {
-      setStartingCall(null);
-    }
-  };
 
   // ✅ Payment modal functions
   const openPaymentModal = async (reservation) => {
@@ -495,21 +479,6 @@ const ClientDashboard = () => {
                             >
                               <History size={14} />
                               Payment History
-                            </button>
-                          )}
-
-                          {reservation.status === 'approved' && (
-                            <button
-                              onClick={() => handleStartVideoCall(reservation)}
-                              disabled={startingCall === reservation.id}
-                              className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-soft-green text-white rounded-lg hover:bg-warm-orange transition disabled:opacity-50"
-                            >
-                              {startingCall === reservation.id ? (
-                                <Loader className="animate-spin" size={14} />
-                              ) : (
-                                <Video size={14} />
-                              )}
-                              {startingCall === reservation.id ? 'Starting...' : 'Join Video Call'}
                             </button>
                           )}
 

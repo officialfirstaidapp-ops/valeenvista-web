@@ -16,7 +16,6 @@ import AgentsDashboard from "./pages/AgentsDashboard/AgentsDashboard";
 import ClientDashboard from "./pages/ClientDashboard/ClientDashboard";
 import Profile from "./pages/Profile/Profile";
 import ChatPage from "./pages/Chat/ChatPage";
-import VideoCall from './pages/VideoCall/VideoCall';
 import GoogleAuthSuccess from './pages/auth/GoogleAuthSuccess';
 
 // Broker Pages
@@ -92,7 +91,7 @@ function App() {
 
                 {/* CHAT ROUTE - All roles */}
                 <Route path="/chat" element={<ProtectedRoute allowedRoles={['admin', 'broker', 'agent', 'client']}><ChatPage /></ProtectedRoute>} />
-                <Route path="/video-call/:roomName" element={<VideoCall />} />
+              
 
                 {/* SETTINGS ROUTE - All roles (auto-selects component) */}
                 <Route path="/settings" element={<ProtectedRoute allowedRoles={['admin', 'broker', 'agent', 'client']}><SettingsRouter /></ProtectedRoute>} />

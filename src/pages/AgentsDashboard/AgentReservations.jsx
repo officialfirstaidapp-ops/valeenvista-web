@@ -16,7 +16,6 @@ import {
   Eye,
   X,
   FileText,
-  Video,
   History,
   Archive
 } from 'lucide-react';
@@ -85,18 +84,6 @@ const AgentReservations = () => {
     }
   };
 
-  const handleStartVideoCall = async (reservation) => {
-    setStartingCall(reservation.id);
-    try {
-      const response = await reservationAPI.getVideoRoom(reservation.id);
-      navigate(`/video-call/${response.data.roomName}`);
-    } catch (err) {
-      console.error('Failed to start video call:', err);
-      alert(err.response?.data?.error || 'Failed to start video call');
-    } finally {
-      setStartingCall(null);
-    }
-  };
 
   const handleFileUpload = async (reservationId, files) => {
     setUploading(reservationId);
@@ -396,10 +383,6 @@ const AgentReservations = () => {
 
                           {reservation.status === 'approved' && (
                             <>
-                              <button onClick={() => handleStartVideoCall(reservation)} disabled={startingCall === reservation.id} className="bg-emerald-500 text-white px-4 py-2 rounded-lg hover:bg-emerald-600 transition flex items-center gap-2 disabled:opacity-50">
-                                {startingCall === reservation.id ? <Loader className="animate-spin" size={16} /> : <Video size={16} />}
-                                {startingCall === reservation.id ? 'Starting...' : 'Video Call'}
-                              </button>
                               <button onClick={() => handleReservationStatus(reservation.id, 'completed')} disabled={processingReservation === reservation.id} className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition flex items-center gap-2 disabled:opacity-50">
                                 {processingReservation === reservation.id ? <Loader className="animate-spin" size={16} /> : <Award size={16} />}
                                 Complete

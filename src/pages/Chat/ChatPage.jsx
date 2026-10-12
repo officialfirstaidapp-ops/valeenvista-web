@@ -10,7 +10,6 @@ import {
   UserPlus,
   X,
   Mail,
-  Video
 } from 'lucide-react';
 import Sidebar from '../../components/Sidebar';
 import Navbar from '../../components/Navbar';
@@ -232,18 +231,6 @@ const ChatPage = () => {
     }
   };
 
-  const handleStartVideoCall = () => {
-    if (!selectedConversation || !user) return;
-
-    const otherUserId = selectedConversation.other_user_id;
-    if (!otherUserId) return;
-
-    const sortedIds = [user.id, otherUserId].sort((a, b) => a - b);
-    const roomName = `valeen-chat-${sortedIds[0]}-${sortedIds[1]}`;
-
-    navigate(`/video-call/${roomName}`);
-  };
-
   const getAvatarUrl = (avatarPath) => {
     if (!avatarPath) return null;
     if (avatarPath.startsWith('http')) return avatarPath;
@@ -283,7 +270,6 @@ const ChatPage = () => {
     c.property_title?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Helper text for the modal header
   const searchHint =
     user?.role === 'broker'
       ? 'Search admins or your agents'
@@ -465,15 +451,6 @@ const ChatPage = () => {
                         )}
                       </p>
                     </div>
-
-                    <button
-                      onClick={handleStartVideoCall}
-                      className="flex items-center gap-2 px-3 py-2 bg-soft-green text-white rounded-lg hover:bg-warm-orange transition text-sm font-medium"
-                      title="Start Video Call"
-                    >
-                      <Video size={18} />
-                      <span className="hidden sm:inline">Video Call</span>
-                    </button>
                   </div>
 
                   <div className="flex-1 overflow-y-auto p-4 bg-gray-50 dark:bg-gray-900">
