@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FileText, Download, Calendar, Users, Home, Loader, CheckCircle, XCircle } from 'lucide-react';
+import { FileText, Download, Calendar, Users, Home, Loader, CheckCircle, XCircle, RotateCcw } from 'lucide-react';
 import Sidebar from '../../components/Sidebar';
 import Navbar from '../../components/Navbar';
 import PesoIcon from '../../components/PesoIcon';
@@ -10,6 +10,7 @@ const AdminReports = () => {
   const [dateRange, setDateRange] = useState('month');
   const [format, setFormat] = useState('pdf');
   const [statusFilter, setStatusFilter] = useState('');
+  const [includeRollback, setIncludeRollback] = useState(true);   // ✅ NEW
   const [generating, setGenerating] = useState(false);
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
@@ -114,26 +115,25 @@ const AdminReports = () => {
                 <div className="mb-6">
                   <label className="block text-dark-text dark:text-white text-sm font-bold mb-3">Report Type</label>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    {reportTypes.map((type) => (
-                      <button
-                        key={type.id}
-                        onClick={() => setReportType(type.id)}
-                        className={`p-4 rounded-lg border-2 transition-all ${
-                          reportType === type.id
-                            ? 'border-soft-green bg-pastel-green/20 dark:bg-emerald-900/20'
-                            : 'border-pastel-green dark:border-gray-700 hover:border-soft-green'
-                        }`}
-                      >
-                        <div className={`w-12 h-12 rounded-lg ${type.color} flex items-center justify-center mx-auto mb-2`}>
-                          {typeof type.icon === 'string' || type.id !== 'commissions' ? (
-                            <type.icon size={24} />
-                          ) : (
-                            <type.icon size={24} />
-                          )}
-                        </div>
-                        <p className="text-sm text-dark-text dark:text-white text-center">{type.label}</p>
-                      </button>
-                    ))}
+                    {reportTypes.map((type) => {
+                      const Icon = type.icon;
+                      return (
+                        <button
+                          key={type.id}
+                          onClick={() => setReportType(type.id)}
+                          className={`p-4 rounded-lg border-2 transition-all ${
+                            reportType === type.id
+                              ? 'border-soft-green bg-pastel-green/20 dark:bg-emerald-900/20'
+                              : 'border-pastel-green dark:border-gray-700 hover:border-soft-green'
+                          }`}
+                        >
+                          <div className={`w-12 h-12 rounded-lg ${type.color} flex items-center justify-center mx-auto mb-2`}>
+                            <Icon size={24} />
+                          </div>
+                          <p className="text-sm text-dark-text dark:text-white text-center">{type.label}</p>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -173,6 +173,34 @@ const AdminReports = () => {
                       <option value="completed">Completed</option>
                       <option value="cancelled">Cancelled</option>
                     </select>
+                  </div>
+                )}
+
+                {/* ✅ NEW: Rollback toggle — visible only for reservations/commissions */}
+                {(reportType === 'reservations' || reportType === 'commissions') && (
+                  <div className="mb-6 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
+                    <label className="flex items-start gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={includeRollback}
+                        onChange={(e) => setIncludeRollback(e.target.checked)}
+                        className="mt-0.5 w-4 h-4 rounded border-gray-300 text-soft-green focus:ring-soft-green"
+                      />
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <RotateCcw size={16} className="text-amber-600" />
+                          <span className="font-semibold text-amber-800 dark:text-amber-300 text-sm">
+                            Include {reportType === 'reservations' ? 'rolled-back' : 'reversed'} records
+                          </span>
+                        </div>
+                        <p className="text-xs text-amber-700 dark:text-amber-400 mt-1">
+                          {reportType === 'reservations'
+                            ? 'Rolled-back reservations will appear highlighted in red with the rollback reason and who performed it.'
+                            : 'Reversed commissions will appear in a separate section with the reversal reason, who reversed it, and when.'
+                          }
+                        </p>
+                      </div>
+                    </label>
                   </div>
                 )}
 
@@ -221,12 +249,23 @@ const AdminReports = () => {
                 <div className="space-y-3 text-sm text-light-text dark:text-gray-400">
                   <p>• <strong className="text-dark-text dark:text-white">Users Report:</strong> All users by role with contact info</p>
                   <p>• <strong className="text-dark-text dark:text-white">Properties Report:</strong> Property listings with prices and status</p>
-                  <p>• <strong className="text-dark-text dark:text-white">Reservations Report:</strong> Client viewings with statuses</p>
-                  <p>• <strong className="text-dark-text dark:text-white">Commissions Report:</strong> Agent earnings breakdown</p>
+                  <p>• <strong className="text-dark-text dark:text-white">Reservations Report:</strong> Client viewings with statuses and rollback info</p>
+                  <p>• <strong className="text-dark-text dark:text-white">Commissions Report:</strong> Agent earnings with reversal info</p>
                   <hr className="border-pastel-green dark:border-gray-700" />
                   <p>• PDF: formatted tables, great for printing</p>
                   <p>• Excel: sortable columns, great for analysis</p>
                 </div>
+              </div>
+
+              {/* NEW: Rollback info card */}
+              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mt-6">
+                <div className="flex items-center gap-2 mb-2">
+                  <RotateCcw size={16} className="text-blue-600" />
+                  <h4 className="text-sm font-semibold text-blue-800 dark:text-blue-300">Rollback & Reversal</h4>
+                </div>
+                <p className="text-xs text-blue-700 dark:text-blue-400">
+                  Rolled-back reservations and reversed commissions are included in reports with a clear visual marker, so you have a full audit trail.
+                </p>
               </div>
             </div>
           </div>
