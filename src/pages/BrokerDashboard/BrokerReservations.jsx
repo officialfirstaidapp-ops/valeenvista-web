@@ -12,7 +12,9 @@ import {
   X,
   Check,
   History,
-  CreditCard
+  CreditCard,
+  Archive,
+  RotateCcw
 } from 'lucide-react';
 import Sidebar from '../../components/Sidebar';
 import Navbar from '../../components/Navbar';
@@ -25,6 +27,7 @@ const BrokerReservations = () => {
   const [error, setError] = useState(null);
   const [filter, setFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [showArchived, setShowArchived] = useState(false);   // ✅ NEW
   const [pagination, setPagination] = useState({
     page: 1, limit: 10, total: 0, totalPages: 1
   });
@@ -42,7 +45,7 @@ const BrokerReservations = () => {
 
   useEffect(() => {
     fetchReservations();
-  }, [pagination.page, filter]);
+  }, [pagination.page, filter, showArchived]);
 
   const fetchReservations = async () => {
     try {
@@ -51,10 +54,18 @@ const BrokerReservations = () => {
       const params = {
         page: pagination.page,
         limit: pagination.limit,
-        status: filter !== 'all' ? filter : undefined
+        status: filter !== 'all' ? filter : undefined,
       };
       const response = await reservationAPI.getAll(params);
-      setReservations(response.data.reservations || []);
+
+      let list = response.data.reservations || [];
+
+      // ✅ Filter client-side for archived (rolled-back)
+      if (!showArchived) {
+        list = list.filter(r => !r.rolled_back_at);
+      }
+
+      setReservations(list);
       setPagination(prev => ({
         ...prev,
         total: response.data.total || 0,
@@ -137,18 +148,8 @@ const BrokerReservations = () => {
     return new Date(dateString).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
   };
 
-  const formatTime = (timeString) => {
-    if (!timeString) return 'N/A';
-    try {
-      const [hours, minutes] = timeString.split(':');
-      const hour = parseInt(hours);
-      const ampm = hour >= 12 ? 'PM' : 'AM';
-      const hour12 = hour % 12 || 12;
-      return `${hour12}:${minutes} ${ampm}`;
-    } catch { return timeString; }
-  };
-
-  const getReservationStatusBadge = (status) => {
+  const getReservationStatusBadge = (status, isRolledBack) => {
+    if (isRolledBack) return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300';
     switch(status) {
       case 'approved': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300';
       case 'rejected': return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300';
@@ -227,6 +228,18 @@ const BrokerReservations = () => {
               <option value="rejected">Rejected</option>
               <option value="completed">Completed</option>
             </select>
+
+            {/* ✅ Show archived toggle */}
+            <label className="flex items-center gap-2 cursor-pointer px-4 py-2 bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-700 rounded-lg whitespace-nowrap">
+              <input
+                type="checkbox"
+                checked={showArchived}
+                onChange={(e) => setShowArchived(e.target.checked)}
+                className="w-4 h-4 rounded border-gray-300 text-soft-green focus:ring-soft-green"
+              />
+              <Archive size={16} className="text-amber-600" />
+              <span className="text-sm text-dark-text dark:text-white font-medium">Show archived</span>
+            </label>
           </div>
 
           {error && (
@@ -257,32 +270,47 @@ const BrokerReservations = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-pastel-green dark:divide-gray-700">
-                    {filteredReservations.map((reservation) => (
-                      <tr key={reservation.id} className="hover:bg-pastel-orange/20 dark:hover:bg-gray-700 transition">
-                        <td className="px-6 py-4"><p className="font-medium text-dark-text dark:text-white">{reservation.property_title || 'N/A'}</p></td>
-                        <td className="px-6 py-4 text-sm text-dark-text dark:text-white">{reservation.client_name || 'N/A'}</td>
-                        <td className="px-6 py-4 text-sm text-dark-text dark:text-white">{reservation.agent_name || 'N/A'}</td>
-                        <td className="px-6 py-4"><p className="text-sm font-semibold text-dark-text dark:text-white">{formatPrice(reservation.property_price)}</p></td>
-                        <td className="px-6 py-4">
-                          {reservation.status === 'completed' ? (
-                            <div className="space-y-1">
-                              <span className={`px-2 py-1 text-xs rounded-full ${getPaymentStatusBadge(reservation.payment_status)}`}>{reservation.payment_status || 'unpaid'}</span>
-                              <p className="text-xs text-light-text dark:text-gray-400">{formatPrice(reservation.total_paid)} / {formatPrice(reservation.property_price)}</p>
-                            </div>
-                          ) : (<span className="text-xs text-gray-400">—</span>)}
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className={`px-2 py-1 text-xs rounded-full ${getReservationStatusBadge(reservation.status)}`}>{reservation.status}</span>
-                        </td>
-                        <td className="px-6 py-4">
-                          {reservation.status === 'completed' && (
-                            <button onClick={() => openPaymentModal(reservation)} className="flex items-center gap-1 px-3 py-1.5 bg-soft-green text-white rounded-lg hover:bg-warm-orange transition text-sm" title={reservation.payment_status === 'paid' ? 'View Payments' : 'Record Payment'}>
-                              {reservation.payment_status === 'paid' ? (<><History size={14} />History</>) : (<><CreditCard size={14} />Payment</>)}
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
+                    {filteredReservations.map((reservation) => {
+                      const isRolledBack = !!reservation.rolled_back_at;
+                      return (
+                        <tr key={reservation.id} className={`transition ${isRolledBack ? 'bg-red-50 dark:bg-red-900/20 opacity-75' : 'hover:bg-pastel-orange/20 dark:hover:bg-gray-700'}`}>
+                          <td className={`px-6 py-4 ${isRolledBack ? 'text-red-700 dark:text-red-300 line-through' : ''}`}>
+                            <p className="font-medium">{reservation.property_title || 'N/A'}</p>
+                            {isRolledBack && reservation.rollback_reason && (
+                              <p className="text-xs text-red-600 dark:text-red-400 no-underline mt-1">
+                                Reason: {reservation.rollback_reason}
+                              </p>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 text-sm text-dark-text dark:text-white">{reservation.client_name || 'N/A'}</td>
+                          <td className="px-6 py-4 text-sm text-dark-text dark:text-white">{reservation.agent_name || 'N/A'}</td>
+                          <td className="px-6 py-4"><p className={`text-sm font-semibold ${isRolledBack ? 'text-red-500 line-through' : 'text-dark-text dark:text-white'}`}>{formatPrice(reservation.property_price)}</p></td>
+                          <td className="px-6 py-4">
+                            {!isRolledBack && reservation.status === 'completed' ? (
+                              <div className="space-y-1">
+                                <span className={`px-2 py-1 text-xs rounded-full ${getPaymentStatusBadge(reservation.payment_status)}`}>{reservation.payment_status || 'unpaid'}</span>
+                                <p className="text-xs text-light-text dark:text-gray-400">{formatPrice(reservation.total_paid)} / {formatPrice(reservation.property_price)}</p>
+                              </div>
+                            ) : (<span className="text-xs text-gray-400">—</span>)}
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className={`px-2 py-1 text-xs rounded-full ${getReservationStatusBadge(reservation.status, isRolledBack)}`}>
+                              {isRolledBack ? '🔄 rolled back' : reservation.status}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4">
+                            {!isRolledBack && reservation.status === 'completed' && (
+                              <button onClick={() => openPaymentModal(reservation)} className="flex items-center gap-1 px-3 py-1.5 bg-soft-green text-white rounded-lg hover:bg-warm-orange transition text-sm" title={reservation.payment_status === 'paid' ? 'View Payments' : 'Record Payment'}>
+                                {reservation.payment_status === 'paid' ? (<><History size={14} />History</>) : (<><CreditCard size={14} />Payment</>)}
+                              </button>
+                            )}
+                            {isRolledBack && (
+                              <span className="text-xs text-light-text dark:text-gray-400">Archived</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

@@ -10,6 +10,8 @@ import {
   Lock,
   Wallet,
   TrendingUp,
+  Archive,
+  RotateCcw
 } from 'lucide-react';
 import Sidebar from '../../components/Sidebar';
 import Navbar from '../../components/Navbar';
@@ -26,16 +28,17 @@ const BrokerCommissions = () => {
   const [error, setError] = useState(null);
   const [actionLoading, setActionLoading] = useState(null);
   const [successMessage, setSuccessMessage] = useState('');
+  const [showArchived, setShowArchived] = useState(false);   // ✅ NEW
 
   useEffect(() => {
     fetchReleases();
-  }, [activeTab]);
+  }, [activeTab, showArchived]);   // ✅ Watch showArchived
 
   const fetchReleases = async () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await commissionAPI.getBrokerReleases(activeTab);
+      const response = await commissionAPI.getBrokerReleases(activeTab, showArchived);   // ✅ Pass toggle
       setReleases(response.data.releases || []);
     } catch (err) {
       console.error('Error fetching releases:', err);
@@ -88,13 +91,11 @@ const BrokerCommissions = () => {
     });
   };
 
-  // ✅ Total amount in current tab
   const totalAmount = releases.reduce(
     (sum, r) => sum + parseFloat(r.amount || 0),
     0
   );
 
-  // ✅ Grand total commission (unique per commission_id)
   const totalCommissionMap = {};
   releases.forEach((r) => {
     if (r.commission_id && !totalCommissionMap[r.commission_id]) {
@@ -149,12 +150,24 @@ const BrokerCommissions = () => {
               <h1 className="text-3xl font-bold text-dark-text dark:text-white">Commissions</h1>
               <p className="text-light-text dark:text-gray-400 mt-1">{headerSubtext}</p>
             </div>
-            <button
-              onClick={fetchReleases}
-              className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 text-slate-600 dark:text-gray-300 rounded-lg hover:bg-slate-50 dark:hover:bg-gray-700 transition border border-slate-200 dark:border-gray-700"
-            >
-              <RefreshCw size={18} /> Refresh
-            </button>
+            <div className="flex items-center gap-3">
+              <label className="flex items-center gap-2 cursor-pointer px-4 py-2 bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-700 rounded-lg">
+                <input
+                  type="checkbox"
+                  checked={showArchived}
+                  onChange={(e) => setShowArchived(e.target.checked)}
+                  className="w-4 h-4 rounded border-gray-300 text-soft-green focus:ring-soft-green"
+                />
+                <Archive size={16} className="text-amber-600" />
+                <span className="text-sm text-dark-text dark:text-white font-medium">Show archived</span>
+              </label>
+              <button
+                onClick={fetchReleases}
+                className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 text-slate-600 dark:text-gray-300 rounded-lg hover:bg-slate-50 dark:hover:bg-gray-700 transition border border-slate-200 dark:border-gray-700"
+              >
+                <RefreshCw size={18} /> Refresh
+              </button>
+            </div>
           </div>
 
           {successMessage && (
@@ -187,9 +200,8 @@ const BrokerCommissions = () => {
             </div>
           </div>
 
-          {/* ✅ Summary cards — 2 cards: Tab Amount + Total Commission */}
+          {/* Summary cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6">
-            {/* Card 1: Amount in this tab */}
             <div className={`bg-gradient-to-r ${headerGradient} rounded-lg shadow-md p-6 text-white`}>
               <div className="flex items-center gap-4">
                 <div className="bg-white/20 p-3 rounded-lg">
@@ -208,7 +220,6 @@ const BrokerCommissions = () => {
               </div>
             </div>
 
-            {/* ✅ Card 2: Grand Total Commission — GREEN gradient */}
             <div className="bg-gradient-to-r from-emerald-600 to-green-500 rounded-lg shadow-md p-6 text-white">
               <div className="flex items-center gap-4">
                 <div className="bg-white/20 p-3 rounded-lg">
@@ -274,9 +285,10 @@ const BrokerCommissions = () => {
                       const canApprove = release.can_approve !== false;
                       const paidPercent = parseFloat(release.paid_percent || 0);
                       const triggerPct = parseFloat(release.trigger_percent || 0);
+                      const isCancelled = release.status === 'cancelled';
 
                       return (
-                        <tr key={release.id} className="hover:bg-pastel-orange/20 dark:hover:bg-gray-700 transition">
+                        <tr key={release.id} className={`transition ${isCancelled ? 'bg-red-50 dark:bg-red-900/20 opacity-75' : 'hover:bg-pastel-orange/20 dark:hover:bg-gray-700'}`}>
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-2">
                               <div className="w-8 h-8 rounded-full bg-soft-green flex items-center justify-center text-white text-sm font-semibold">
@@ -285,18 +297,24 @@ const BrokerCommissions = () => {
                               <span className="text-sm text-dark-text dark:text-white">{release.agent_name || 'N/A'}</span>
                             </div>
                           </td>
-                          <td className="px-6 py-4 text-sm text-dark-text dark:text-white">{release.property_title || 'N/A'}</td>
+                          <td className={`px-6 py-4 text-sm ${isCancelled ? 'text-red-700 dark:text-red-300 line-through' : 'text-dark-text dark:text-white'}`}>
+                            {release.property_title || 'N/A'}
+                            {isCancelled && (
+                              <p className="text-xs text-red-600 dark:text-red-400 no-underline mt-1">Cancelled via rollback</p>
+                            )}
+                          </td>
                           <td className="px-6 py-4">
                             <div>
-                              <p className="text-sm font-medium text-dark-text dark:text-white">{release.milestone_name}</p>
+                              <p className={`text-sm font-medium ${isCancelled ? 'text-red-700 dark:text-red-300 line-through' : 'text-dark-text dark:text-white'}`}>
+                                {release.milestone_name}
+                              </p>
                               <p className="text-xs text-light-text dark:text-gray-400">{release.milestone_percent}%</p>
                             </div>
                           </td>
                           <td className="px-6 py-4">
-                            <p className="text-sm font-semibold text-soft-green">
+                            <p className={`text-sm font-semibold ${isCancelled ? 'text-red-500 line-through' : 'text-soft-green'}`}>
                               {formatPrice(release.amount)}
                             </p>
-                            {/* ✅ Commission total under the amount */}
                             {release.commission_total ? (
                               <p className="text-[11px] text-light-text dark:text-gray-400 mt-0.5 flex items-center gap-1">
                                 <TrendingUp size={10} />
@@ -334,7 +352,12 @@ const BrokerCommissions = () => {
                             {activeTab === 'paid' && formatDate(release.paid_at)}
                           </td>
                           <td className="px-6 py-4 text-right">
-                            {activeTab === 'pending' && (
+                            {isCancelled && (
+                              <span className="inline-flex items-center gap-1 px-3 py-1.5 bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 rounded-lg text-xs font-medium">
+                                <RotateCcw size={12} /> Archived
+                              </span>
+                            )}
+                            {!isCancelled && activeTab === 'pending' && (
                               <button
                                 onClick={() => handleApprove(release.id)}
                                 disabled={actionLoading === release.id || !canApprove}
@@ -355,7 +378,7 @@ const BrokerCommissions = () => {
                                 {canApprove ? 'Approve' : 'Locked'}
                               </button>
                             )}
-                            {activeTab === 'approved' && (
+                            {!isCancelled && activeTab === 'approved' && (
                               <button
                                 onClick={() => handleMarkAsPaid(release.id)}
                                 disabled={actionLoading === release.id}
@@ -365,7 +388,7 @@ const BrokerCommissions = () => {
                                 Mark as Paid
                               </button>
                             )}
-                            {activeTab === 'paid' && (
+                            {!isCancelled && activeTab === 'paid' && (
                               <span className="text-xs text-light-text dark:text-gray-400">
                                 {release.paid_by_name || 'Broker'}
                               </span>

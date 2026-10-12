@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Loader, RefreshCw, TrendingUp, Clock, XCircle, CheckCircle, Lock, Unlock } from 'lucide-react';
+import { Loader, RefreshCw, TrendingUp, Clock, XCircle, CheckCircle, Lock, Unlock, Archive, RotateCcw } from 'lucide-react';
 import Sidebar from '../../components/Sidebar';
 import Navbar from '../../components/Navbar';
 import PesoIcon from '../../components/PesoIcon';
@@ -11,14 +11,15 @@ const AgentCommissions = () => {
   const [commissions, setCommissions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [stats, setStats] = useState({ earned: 0, released: 0, pending: 0 });
+  const [stats, setStats] = useState({ earned: 0, released: 0, pending: 0, reversed: 0 });
+  const [showArchived, setShowArchived] = useState(false);   // ✅ NEW
   const [selectedCommission, setSelectedCommission] = useState(null);
   const [selectedReleases, setSelectedReleases] = useState([]);
   const [showReleasesModal, setShowReleasesModal] = useState(false);
 
   useEffect(() => {
     fetchCommissions();
-  }, []);
+  }, [showArchived]);
 
   const fetchCommissions = async () => {
     try {
@@ -26,20 +27,31 @@ const AgentCommissions = () => {
       setError(null);
 
       const response = await reservationAPI.getMyCommissions?.() || { data: [] };
-      const commissionList = response.data.commissions || [];
+      let commissionList = response.data.commissions || [];
+
+      // ✅ Client-side filter for reversed (since backend returns all)
+      if (!showArchived) {
+        commissionList = commissionList.filter(c => c.status !== 'reversed');
+      }
+
       setCommissions(commissionList);
 
       let totalEarned = 0;
       let totalReleased = 0;
       let totalPending = 0;
+      let totalReversed = 0;
 
       commissionList.forEach(c => {
-        totalEarned += parseFloat(c.total_earned || c.amount || 0);
-        totalReleased += parseFloat(c.total_released || 0);
-        totalPending += parseFloat(c.total_pending || c.amount || 0);
+        if (c.status === 'reversed') {
+          totalReversed += parseFloat(c.amount || 0);
+        } else {
+          totalEarned += parseFloat(c.total_earned || c.amount || 0);
+          totalReleased += parseFloat(c.total_released || 0);
+          totalPending += parseFloat(c.total_pending || c.amount || 0);
+        }
       });
 
-      setStats({ earned: totalEarned, released: totalReleased, pending: totalPending });
+      setStats({ earned: totalEarned, released: totalReleased, pending: totalPending, reversed: totalReversed });
     } catch (err) {
       console.error('Error fetching commissions:', err);
       setError('Failed to load commissions');
@@ -62,6 +74,7 @@ const AgentCommissions = () => {
   const getStatusBadge = (status) => {
     if (status === 'paid') return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300';
     if (status === 'approved') return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-300';
+    if (status === 'reversed' || status === 'cancelled') return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300';
     return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300';
   };
 
@@ -95,12 +108,25 @@ const AgentCommissions = () => {
               <h1 className="text-3xl font-bold text-dark-text dark:text-white">Commissions</h1>
               <p className="text-light-text dark:text-gray-400 mt-1">Track your earnings and releases</p>
             </div>
-            <button onClick={fetchCommissions} className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 text-slate-600 dark:text-gray-300 rounded-lg hover:bg-slate-50 dark:hover:bg-gray-700 transition border border-slate-200 dark:border-gray-700">
-              <RefreshCw size={18} /> Refresh
-            </button>
+            <div className="flex items-center gap-3">
+              {/* ✅ Show archived toggle */}
+              <label className="flex items-center gap-2 cursor-pointer px-4 py-2 bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-700 rounded-lg">
+                <input
+                  type="checkbox"
+                  checked={showArchived}
+                  onChange={(e) => setShowArchived(e.target.checked)}
+                  className="w-4 h-4 rounded border-gray-300 text-soft-green focus:ring-soft-green"
+                />
+                <Archive size={16} className="text-amber-600" />
+                <span className="text-sm text-dark-text dark:text-white font-medium">Show archived</span>
+              </label>
+              <button onClick={fetchCommissions} className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 text-slate-600 dark:text-gray-300 rounded-lg hover:bg-slate-50 dark:hover:bg-gray-700 transition border border-slate-200 dark:border-gray-700">
+                <RefreshCw size={18} /> Refresh
+              </button>
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+          <div className={`grid grid-cols-1 md:grid-cols-${stats.reversed > 0 ? 4 : 3} gap-6 mb-6`}>
             <div className="bg-gradient-to-r from-soft-green to-warm-orange rounded-lg shadow-md p-6 text-white">
               <div className="flex items-center gap-3">
                 <TrendingUp size={24} />
@@ -132,6 +158,19 @@ const AgentCommissions = () => {
                 </div>
               </div>
             </div>
+            {stats.reversed > 0 && (
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 border border-red-200 dark:border-red-800">
+                <div className="flex items-center gap-3">
+                  <div className="bg-red-100 dark:bg-red-900 p-2 rounded-lg">
+                    <RotateCcw size={20} className="text-red-600 dark:text-red-400" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-light-text dark:text-gray-400">Reversed</p>
+                    <p className="text-2xl font-bold text-red-600 dark:text-red-400">-{formatPrice(stats.reversed)}</p>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {error && (
@@ -158,23 +197,50 @@ const AgentCommissions = () => {
                       <th className="px-4 py-3 text-left text-xs font-medium text-dark-text dark:text-white uppercase">Total Earned</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-dark-text dark:text-white uppercase">Released</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-dark-text dark:text-white uppercase">Pending</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-dark-text dark:text-white uppercase">Status</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-dark-text dark:text-white uppercase">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-pastel-green dark:divide-gray-700">
-                    {commissions.map((commission) => (
-                      <tr key={commission.id} className="hover:bg-pastel-orange/20 dark:hover:bg-gray-700 transition">
-                        <td className="px-4 py-3 text-sm text-dark-text dark:text-white">{commission.property_title || 'N/A'}</td>
-                        <td className="px-4 py-3 text-sm font-semibold text-dark-text dark:text-white">{formatPrice(commission.total_earned || commission.amount)}</td>
-                        <td className="px-4 py-3 text-sm font-semibold text-green-600 dark:text-green-400">{formatPrice(commission.total_released || 0)}</td>
-                        <td className="px-4 py-3 text-sm font-semibold text-yellow-600 dark:text-yellow-400">{formatPrice(commission.total_pending || commission.amount || 0)}</td>
-                        <td className="px-4 py-3">
-                          <button onClick={() => viewReleases(commission)} className="text-soft-green hover:text-warm-orange transition text-sm flex items-center gap-1">
-                            <Unlock size={14} /> View Milestones
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
+                    {commissions.map((commission) => {
+                      const isReversed = commission.status === 'reversed';
+                      return (
+                        <tr key={commission.id} className={`transition ${isReversed ? 'bg-red-50 dark:bg-red-900/20 opacity-75' : 'hover:bg-pastel-orange/20 dark:hover:bg-gray-700'}`}>
+                          <td className={`px-4 py-3 text-sm ${isReversed ? 'text-red-700 dark:text-red-300 line-through' : 'text-dark-text dark:text-white'}`}>
+                            {commission.property_title || 'N/A'}
+                            {isReversed && commission.reversal_reason && (
+                              <p className="text-xs text-red-600 dark:text-red-400 no-underline mt-1" title={commission.reversal_reason}>
+                                Reason: {commission.reversal_reason.substring(0, 40)}{commission.reversal_reason.length > 40 ? '...' : ''}
+                              </p>
+                            )}
+                          </td>
+                          <td className={`px-4 py-3 text-sm font-semibold ${isReversed ? 'text-red-500 line-through' : 'text-dark-text dark:text-white'}`}>
+                            {formatPrice(commission.total_earned || commission.amount)}
+                          </td>
+                          <td className={`px-4 py-3 text-sm font-semibold ${isReversed ? 'text-red-500 line-through' : 'text-green-600 dark:text-green-400'}`}>
+                            {formatPrice(commission.total_released || 0)}
+                          </td>
+                          <td className={`px-4 py-3 text-sm font-semibold ${isReversed ? 'text-red-500 line-through' : 'text-yellow-600 dark:text-yellow-400'}`}>
+                            {formatPrice(commission.total_pending || commission.amount || 0)}
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className={`px-2 py-1 text-xs rounded-full ${getStatusBadge(commission.status)}`}>
+                              {isReversed ? '🔄 reversed' : commission.status}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            {!isReversed && (
+                              <button onClick={() => viewReleases(commission)} className="text-soft-green hover:text-warm-orange transition text-sm flex items-center gap-1">
+                                <Unlock size={14} /> View Milestones
+                              </button>
+                            )}
+                            {isReversed && (
+                              <span className="text-xs text-light-text dark:text-gray-400">Archived</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -202,15 +268,24 @@ const AgentCommissions = () => {
             <div className="space-y-3">
               {selectedReleases.map((release) => {
                 const isApproved = release.status === 'approved';
+                const isCancelled = release.status === 'cancelled';
                 return (
-                  <div key={release.id} className={`p-4 rounded-lg border-2 ${isApproved ? 'border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/20' : 'border-yellow-200 dark:border-yellow-800 bg-yellow-50 dark:bg-yellow-900/20'}`}>
+                  <div key={release.id} className={`p-4 rounded-lg border-2 ${
+                    isCancelled ? 'border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20' :
+                    isApproved ? 'border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/20' :
+                    'border-yellow-200 dark:border-yellow-800 bg-yellow-50 dark:bg-yellow-900/20'
+                  }`}>
                     <div className="flex justify-between items-center">
                       <div className="flex items-center gap-3">
-                        {isApproved ? <CheckCircle className="text-emerald-600 dark:text-emerald-400" size={24} /> : <Lock className="text-yellow-600 dark:text-yellow-400" size={24} />}
+                        {isCancelled ? <RotateCcw className="text-red-600 dark:text-red-400" size={24} /> :
+                         isApproved ? <CheckCircle className="text-emerald-600 dark:text-emerald-400" size={24} /> :
+                         <Lock className="text-yellow-600 dark:text-yellow-400" size={24} />}
                         <div>
-                          <p className="font-semibold text-dark-text dark:text-white">{release.milestone_name}</p>
+                          <p className={`font-semibold ${isCancelled ? 'text-red-700 dark:text-red-300 line-through' : 'text-dark-text dark:text-white'}`}>
+                            {release.milestone_name}
+                          </p>
                           <p className="text-sm text-light-text dark:text-gray-400">{release.milestone_percent}% of total commission</p>
-                          {release.approved_at && (
+                          {release.approved_at && !isCancelled && (
                             <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1">
                               Approved: {formatDate(release.approved_at)}
                               {release.approved_by_name && ` by ${release.approved_by_name}`}
@@ -219,7 +294,11 @@ const AgentCommissions = () => {
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className={`text-lg font-bold ${isApproved ? 'text-emerald-600 dark:text-emerald-400' : 'text-yellow-600 dark:text-yellow-400'}`}>
+                        <p className={`text-lg font-bold ${
+                          isCancelled ? 'text-red-600 dark:text-red-400 line-through' :
+                          isApproved ? 'text-emerald-600 dark:text-emerald-400' :
+                          'text-yellow-600 dark:text-yellow-400'
+                        }`}>
                           {formatPrice(release.amount)}
                         </p>
                         <span className={`px-2 py-0.5 text-xs rounded-full ${getStatusBadge(release.status)}`}>{release.status}</span>

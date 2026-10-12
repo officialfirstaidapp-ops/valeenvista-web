@@ -17,7 +17,8 @@ import {
   X,
   FileText,
   Video,
-  History
+  History,
+  Archive
 } from 'lucide-react';
 import Sidebar from '../../components/Sidebar';
 import Navbar from '../../components/Navbar';
@@ -31,6 +32,7 @@ const AgentReservations = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [filter, setFilter] = useState('all');
+  const [showArchived, setShowArchived] = useState(false);   // ✅ NEW
   const [processingReservation, setProcessingReservation] = useState(null);
   const [uploading, setUploading] = useState(null);
   const [showProofModal, setShowProofModal] = useState(false);
@@ -48,13 +50,13 @@ const AgentReservations = () => {
 
   useEffect(() => {
     fetchReservations();
-  }, []);
+  }, [showArchived]);   // ✅ Refetch when toggle changes
 
   const fetchReservations = async () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await reservationAPI.getAgentReservations();
+      const response = await reservationAPI.getAgentReservations(showArchived);   // ✅ Pass toggle
       setReservations(response.data.reservations || []);
     } catch (err) {
       console.error('Error fetching reservations:', err);
@@ -65,7 +67,6 @@ const AgentReservations = () => {
   };
 
   const handleReservationStatus = async (reservationId, status) => {
-    // ✅ Confirm for cancel
     if (status === 'cancelled') {
       if (!window.confirm('Cancel this reservation? The client will be notified.')) {
         return;
@@ -221,7 +222,8 @@ const AgentReservations = () => {
     } catch { return timeString; }
   };
 
-  const getReservationStatusBadge = (status) => {
+  const getReservationStatusBadge = (status, isRolledBack) => {
+    if (isRolledBack) return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300';
     switch(status) {
       case 'approved': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300';
       case 'rejected': return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300';
@@ -277,8 +279,9 @@ const AgentReservations = () => {
             </button>
           </div>
 
+          {/* ✅ Filters + Show Archived toggle */}
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 mb-6 border border-pastel-green dark:border-gray-700">
-            <div className="flex items-center gap-4">
+            <div className="flex flex-wrap items-center gap-4">
               <Filter size={20} className="text-light-text dark:text-gray-400" />
               <select value={filter} onChange={(e) => setFilter(e.target.value)} className="px-4 py-2 border border-pastel-green dark:border-gray-600 rounded-lg focus:outline-none focus:border-soft-green bg-white dark:bg-gray-700 text-dark-text dark:text-white">
                 <option value="all">All</option>
@@ -289,6 +292,20 @@ const AgentReservations = () => {
                 <option value="cancelled">Cancelled</option>
               </select>
               <span className="text-sm text-light-text dark:text-gray-400">Showing {filteredReservations.length} reservations</span>
+
+              {/* ✅ Show archived toggle */}
+              <label className="flex items-center gap-2 cursor-pointer ml-auto">
+                <input
+                  type="checkbox"
+                  checked={showArchived}
+                  onChange={(e) => setShowArchived(e.target.checked)}
+                  className="w-4 h-4 rounded border-gray-300 text-soft-green focus:ring-soft-green"
+                />
+                <Archive size={16} className="text-amber-600" />
+                <span className="text-sm text-dark-text dark:text-white font-medium">
+                  Show archived (rolled back)
+                </span>
+              </label>
             </div>
           </div>
 
@@ -308,87 +325,110 @@ const AgentReservations = () => {
             </div>
           ) : (
             <div className="space-y-4">
-              {filteredReservations.map((reservation) => (
-                <div key={reservation.id} className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 border border-pastel-green dark:border-gray-700 hover:shadow-lg transition">
-                  <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-3">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1 flex-wrap">
-                        <h3 className="font-semibold text-dark-text dark:text-white">{reservation.property_title || 'Property'}</h3>
-                        <span className={`px-2 py-0.5 text-xs rounded-full ${getReservationStatusBadge(reservation.status)}`}>{reservation.status}</span>
-                        {reservation.status === 'completed' && (
-                          <span className={`px-2 py-0.5 text-xs rounded-full ${getPaymentStatusBadge(reservation.payment_status)}`}>
-                            💰 {reservation.payment_status || 'unpaid'}
+              {filteredReservations.map((reservation) => {
+                const isRolledBack = !!reservation.rolled_back_at;
+                return (
+                  <div
+                    key={reservation.id}
+                    className={`rounded-lg shadow-md p-4 border transition ${
+                      isRolledBack
+                        ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 opacity-90'
+                        : 'bg-white dark:bg-gray-800 border-pastel-green dark:border-gray-700 hover:shadow-lg'
+                    }`}
+                  >
+                    <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-3">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
+                          <h3 className={`font-semibold ${isRolledBack ? 'text-red-700 dark:text-red-300 line-through' : 'text-dark-text dark:text-white'}`}>
+                            {reservation.property_title || 'Property'}
+                          </h3>
+                          <span className={`px-2 py-0.5 text-xs rounded-full ${getReservationStatusBadge(reservation.status, isRolledBack)}`}>
+                            {isRolledBack ? '🔄 ROLLED BACK' : reservation.status}
                           </span>
+                          {!isRolledBack && reservation.status === 'completed' && (
+                            <span className={`px-2 py-0.5 text-xs rounded-full ${getPaymentStatusBadge(reservation.payment_status)}`}>
+                              💰 {reservation.payment_status || 'unpaid'}
+                            </span>
+                          )}
+                        </div>
+
+                        {isRolledBack && reservation.rollback_reason && (
+                          <p className="text-xs text-red-600 dark:text-red-400 mb-2">
+                            Reason: {reservation.rollback_reason} · {formatDate(reservation.rolled_back_at)}
+                          </p>
+                        )}
+
+                        <div className="flex flex-wrap items-center gap-2 sm:gap-4">
+                          <p className="text-sm text-light-text dark:text-gray-400 flex items-center gap-1"><User size={14} className="text-soft-green" />Client: {reservation.client_name || 'Unknown'}</p>
+                          <p className="text-sm text-light-text dark:text-gray-400 flex items-center gap-1"><Calendar size={14} className="text-soft-green" />{formatDate(reservation.reservation_date)}</p>
+                          <p className="text-sm text-light-text dark:text-gray-400 flex items-center gap-1"><Clock size={14} className="text-soft-green" />{formatTime(reservation.reservation_time)}</p>
+                        </div>
+                        {!isRolledBack && reservation.completed_at && (
+                          <p className="text-sm text-green-600 flex items-center gap-1 mt-1"><Award size={14} />Completed: {formatDate(reservation.completed_at)}</p>
+                        )}
+                        {!isRolledBack && reservation.status === 'completed' && reservation.property_price && (
+                          <div className="mt-2 flex flex-wrap gap-3 text-sm">
+                            <span className="text-light-text dark:text-gray-400">Price: <span className="font-semibold text-dark-text dark:text-white">{formatPrice(reservation.property_price)}</span></span>
+                            <span className="text-light-text dark:text-gray-400">Paid: <span className="font-semibold text-emerald-600">{formatPrice(reservation.total_paid)}</span></span>
+                            <span className="text-light-text dark:text-gray-400">Balance: <span className="font-semibold text-rose-600">{formatPrice(getRemainingBalance(reservation))}</span></span>
+                          </div>
+                        )}
+                        {reservation.notes && !isRolledBack && (
+                          <p className="text-sm text-light-text dark:text-gray-400 mt-2 bg-gray-50 dark:bg-gray-700 p-2 rounded border border-gray-100 dark:border-gray-600">📝 {reservation.notes}</p>
                         )}
                       </div>
-                      <div className="flex flex-wrap items-center gap-2 sm:gap-4">
-                        <p className="text-sm text-light-text dark:text-gray-400 flex items-center gap-1"><User size={14} className="text-soft-green" />Client: {reservation.client_name || 'Unknown'}</p>
-                        <p className="text-sm text-light-text dark:text-gray-400 flex items-center gap-1"><Calendar size={14} className="text-soft-green" />{formatDate(reservation.reservation_date)}</p>
-                        <p className="text-sm text-light-text dark:text-gray-400 flex items-center gap-1"><Clock size={14} className="text-soft-green" />{formatTime(reservation.reservation_time)}</p>
-                      </div>
-                      {reservation.completed_at && (
-                        <p className="text-sm text-green-600 flex items-center gap-1 mt-1"><Award size={14} />Completed: {formatDate(reservation.completed_at)}</p>
-                      )}
-                      {reservation.status === 'completed' && reservation.property_price && (
-                        <div className="mt-2 flex flex-wrap gap-3 text-sm">
-                          <span className="text-light-text dark:text-gray-400">Price: <span className="font-semibold text-dark-text dark:text-white">{formatPrice(reservation.property_price)}</span></span>
-                          <span className="text-light-text dark:text-gray-400">Paid: <span className="font-semibold text-emerald-600">{formatPrice(reservation.total_paid)}</span></span>
-                          <span className="text-light-text dark:text-gray-400">Balance: <span className="font-semibold text-rose-600">{formatPrice(getRemainingBalance(reservation))}</span></span>
-                        </div>
-                      )}
-                      {reservation.notes && (
-                        <p className="text-sm text-light-text dark:text-gray-400 mt-2 bg-gray-50 dark:bg-gray-700 p-2 rounded border border-gray-100 dark:border-gray-600">📝 {reservation.notes}</p>
-                      )}
-                    </div>
 
-                    <div className="flex flex-wrap gap-2 flex-shrink-0">
-                      {reservation.status === 'pending' && (
-                        <>
-                          <button onClick={() => handleReservationStatus(reservation.id, 'approved')} disabled={processingReservation === reservation.id} className="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition flex items-center gap-2 disabled:opacity-50">
-                            {processingReservation === reservation.id ? <Loader className="animate-spin" size={16} /> : <CheckCircle size={16} />}
-                            Approve
-                          </button>
-                          <button onClick={() => handleReservationStatus(reservation.id, 'rejected')} disabled={processingReservation === reservation.id} className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition flex items-center gap-2 disabled:opacity-50">
-                            {processingReservation === reservation.id ? <Loader className="animate-spin" size={16} /> : <XCircle size={16} />}
-                            Reject
-                          </button>
-                        </>
-                      )}
-
-                      {reservation.status === 'approved' && (
-                        <>
-                          <button onClick={() => handleStartVideoCall(reservation)} disabled={startingCall === reservation.id} className="bg-emerald-500 text-white px-4 py-2 rounded-lg hover:bg-emerald-600 transition flex items-center gap-2 disabled:opacity-50">
-                            {startingCall === reservation.id ? <Loader className="animate-spin" size={16} /> : <Video size={16} />}
-                            {startingCall === reservation.id ? 'Starting...' : 'Video Call'}
-                          </button>
-                          <button onClick={() => handleReservationStatus(reservation.id, 'completed')} disabled={processingReservation === reservation.id} className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition flex items-center gap-2 disabled:opacity-50">
-                            {processingReservation === reservation.id ? <Loader className="animate-spin" size={16} /> : <Award size={16} />}
-                            Complete
-                          </button>
-                          {/* ✅ NEW: Cancel (client no-show) */}
-                          <button onClick={() => handleReservationStatus(reservation.id, 'cancelled')} disabled={processingReservation === reservation.id} className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition flex items-center gap-2 disabled:opacity-50">
-                            {processingReservation === reservation.id ? <Loader className="animate-spin" size={16} /> : <XCircle size={16} />}
-                            Cancel
-                          </button>
-                        </>
-                      )}
-
-                      {reservation.status === 'completed' && (
-                        <>
-                          <button onClick={() => openProofModal(reservation)} className="bg-purple-500 text-white px-4 py-2 rounded-lg hover:bg-purple-600 transition flex items-center gap-2">
-                            <Upload size={16} />Proof
-                          </button>
-                          {reservation.payment_status && reservation.payment_status !== 'unpaid' && (
-                            <button onClick={() => openPaymentModal(reservation)} className="bg-emerald-500 text-white px-4 py-2 rounded-lg hover:bg-emerald-600 transition flex items-center gap-2">
-                              <History size={16} />Payments
-                            </button>
+                      {/* Hide action buttons on rolled-back reservations */}
+                      {!isRolledBack && (
+                        <div className="flex flex-wrap gap-2 flex-shrink-0">
+                          {reservation.status === 'pending' && (
+                            <>
+                              <button onClick={() => handleReservationStatus(reservation.id, 'approved')} disabled={processingReservation === reservation.id} className="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition flex items-center gap-2 disabled:opacity-50">
+                                {processingReservation === reservation.id ? <Loader className="animate-spin" size={16} /> : <CheckCircle size={16} />}
+                                Approve
+                              </button>
+                              <button onClick={() => handleReservationStatus(reservation.id, 'rejected')} disabled={processingReservation === reservation.id} className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition flex items-center gap-2 disabled:opacity-50">
+                                {processingReservation === reservation.id ? <Loader className="animate-spin" size={16} /> : <XCircle size={16} />}
+                                Reject
+                              </button>
+                            </>
                           )}
-                        </>
+
+                          {reservation.status === 'approved' && (
+                            <>
+                              <button onClick={() => handleStartVideoCall(reservation)} disabled={startingCall === reservation.id} className="bg-emerald-500 text-white px-4 py-2 rounded-lg hover:bg-emerald-600 transition flex items-center gap-2 disabled:opacity-50">
+                                {startingCall === reservation.id ? <Loader className="animate-spin" size={16} /> : <Video size={16} />}
+                                {startingCall === reservation.id ? 'Starting...' : 'Video Call'}
+                              </button>
+                              <button onClick={() => handleReservationStatus(reservation.id, 'completed')} disabled={processingReservation === reservation.id} className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition flex items-center gap-2 disabled:opacity-50">
+                                {processingReservation === reservation.id ? <Loader className="animate-spin" size={16} /> : <Award size={16} />}
+                                Complete
+                              </button>
+                              <button onClick={() => handleReservationStatus(reservation.id, 'cancelled')} disabled={processingReservation === reservation.id} className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition flex items-center gap-2 disabled:opacity-50">
+                                {processingReservation === reservation.id ? <Loader className="animate-spin" size={16} /> : <XCircle size={16} />}
+                                Cancel
+                              </button>
+                            </>
+                          )}
+
+                          {reservation.status === 'completed' && (
+                            <>
+                              <button onClick={() => openProofModal(reservation)} className="bg-purple-500 text-white px-4 py-2 rounded-lg hover:bg-purple-600 transition flex items-center gap-2">
+                                <Upload size={16} />Proof
+                              </button>
+                              {reservation.payment_status && reservation.payment_status !== 'unpaid' && (
+                                <button onClick={() => openPaymentModal(reservation)} className="bg-emerald-500 text-white px-4 py-2 rounded-lg hover:bg-emerald-600 transition flex items-center gap-2">
+                                  <History size={16} />Payments
+                                </button>
+                              )}
+                            </>
+                          )}
+                        </div>
                       )}
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </main>
