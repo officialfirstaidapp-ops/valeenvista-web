@@ -215,6 +215,10 @@ export const commissionAPI = {
     api.patch(`/commissions/releases/${releaseId}/approve`, data),
   markReleaseAsPaid: (releaseId, data = {}) =>
     api.patch(`/commissions/releases/${releaseId}/paid`, data),
+
+  // ✅ NEW: Admin-only
+  reverseCommission: (id, data) => api.patch(`/commissions/${id}/reverse`, data),
+  adjustCommission: (id, data) => api.patch(`/commissions/${id}/adjust`, data),
 };
 
 // ============================================
