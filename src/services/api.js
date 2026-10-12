@@ -169,6 +169,7 @@ export const reservationAPI = {
   getMyCommissions: () => api.get('/reservations/commissions'),
   updateStatus: (id, data) => api.patch(`/reservations/${id}/status`, data),
   getVideoRoom: (id) => api.get(`/reservations/${id}/video-room`),
+  rollback: (id, data) => api.patch(`/reservations/${id}/rollback`, data),   // ✅ NEW
 
   getAll: (params = {}) => {
     const queryParams = new URLSearchParams();

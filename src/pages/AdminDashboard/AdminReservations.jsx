@@ -12,7 +12,8 @@ import {
   FileText, 
   X,
   CreditCard,
-  History
+  History,
+  RotateCcw
 } from 'lucide-react';
 import Sidebar from '../../components/Sidebar';
 import Navbar from '../../components/Navbar';
@@ -42,6 +43,15 @@ const AdminReservations = () => {
   const [successMessage, setSuccessMessage] = useState('');
   const [paymentError, setPaymentError] = useState('');
 
+  // ✅ NEW: Rollback state
+  const [showRollbackModal, setShowRollbackModal] = useState(false);
+  const [rollbackReservation, setRollbackReservation] = useState(null);
+  const [rollbackReason, setRollbackReason] = useState('');
+  const [rollbackLoading, setRollbackLoading] = useState(false);
+  const [rollbackError, setRollbackError] = useState('');
+  const [rollbackSuccess, setRollbackSuccess] = useState('');
+  const [toast, setToast] = useState(null);
+
   const [pagination, setPagination] = useState({
     page: 1, limit: 10, total: 0, totalPages: 1
   });
@@ -49,6 +59,14 @@ const AdminReservations = () => {
   useEffect(() => {
     fetchReservations();
   }, [pagination.page, filter]);
+
+  // ✅ Auto-hide toast after 4 seconds
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => setToast(null), 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [toast]);
 
   const fetchReservations = async () => {
     try {
@@ -160,12 +178,67 @@ const AdminReservations = () => {
     }
   };
 
+  // ✅ NEW: Rollback handlers
+  const openRollbackModal = (reservation) => {
+    setRollbackReservation(reservation);
+    setRollbackReason('');
+    setRollbackError('');
+    setRollbackSuccess('');
+    setShowRollbackModal(true);
+  };
+
+  const closeRollbackModal = () => {
+    setShowRollbackModal(false);
+    setRollbackReservation(null);
+    setRollbackReason('');
+    setRollbackError('');
+    setRollbackSuccess('');
+  };
+
+  const handleRollbackSubmit = async (e) => {
+    e.preventDefault();
+    setRollbackError('');
+    setRollbackSuccess('');
+
+    if (!rollbackReason || rollbackReason.trim().length < 5) {
+      setRollbackError('Please provide a reason (min 5 characters)');
+      return;
+    }
+
+    setRollbackLoading(true);
+
+    try {
+      const response = await reservationAPI.rollback(rollbackReservation.id, {
+        reason: rollbackReason.trim()
+      });
+
+      setRollbackSuccess(response.data.message || 'Rolled back successfully');
+
+      // Close modal after 1.5s and show toast
+      setTimeout(() => {
+        closeRollbackModal();
+        setToast({
+          type: 'success',
+          message: `✅ Reservation rolled back. Property is now available.`
+        });
+      }, 1500);
+
+      await fetchReservations();
+    } catch (err) {
+      console.error('Rollback error:', err);
+      setRollbackError(err.response?.data?.error || 'Failed to rollback reservation');
+    } finally {
+      setRollbackLoading(false);
+    }
+  };
+
   const getStatusBadge = (status) => {
     switch(status) {
       case 'approved': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300';
       case 'rejected': return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300';
       case 'pending': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300';
       case 'completed': return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300';
+      case 'cancelled': return 'bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
       default: return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
     }
   };
@@ -208,6 +281,16 @@ const AdminReservations = () => {
     if (fileType?.startsWith('image/')) return <Image size={16} className="text-blue-500" />;
     return <FileText size={16} className="text-gray-500" />;
   };
+
+  // ✅ Check if rollback is allowed
+  const canRollback = (reservation) => {
+    return (
+      (reservation.status === 'completed' || reservation.payment_status === 'paid') &&
+      !reservation.rolled_back_at
+    );
+  };
+
+  const isRolledBack = (reservation) => Boolean(reservation.rolled_back_at);
 
   const filteredReservations = reservations.filter(r =>
     r.property_title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -257,6 +340,7 @@ const AdminReservations = () => {
               <option value="approved">Approved</option>
               <option value="rejected">Rejected</option>
               <option value="completed">Completed</option>
+              <option value="cancelled">Cancelled</option>
             </select>
             <button onClick={fetchReservations} className="flex items-center gap-2 px-4 py-2 bg-soft-green text-white rounded-lg hover:bg-warm-orange transition">
               <RefreshCw size={18} /> Refresh
@@ -293,7 +377,7 @@ const AdminReservations = () => {
                   </thead>
                   <tbody className="divide-y divide-pastel-green dark:divide-gray-700">
                     {filteredReservations.map((reservation) => (
-                      <tr key={reservation.id} className="hover:bg-pastel-orange/20 dark:hover:bg-gray-700 transition">
+                      <tr key={reservation.id} className={`hover:bg-pastel-orange/20 dark:hover:bg-gray-700 transition ${isRolledBack(reservation) ? 'opacity-60' : ''}`}>
                         <td className="px-4 py-4">
                           <p className="font-medium text-dark-text dark:text-white">{reservation.property_title || 'N/A'}</p>
                           {reservation.property_price && (
@@ -307,7 +391,16 @@ const AdminReservations = () => {
                           <p className="text-xs text-light-text dark:text-gray-400">{formatTime(reservation.reservation_time)}</p>
                         </td>
                         <td className="px-4 py-4">
-                          <span className={`px-2 py-1 text-xs rounded-full ${getStatusBadge(reservation.status)}`}>{reservation.status}</span>
+                          {isRolledBack(reservation) ? (
+                            <span
+                              className="px-2 py-1 text-xs rounded-full bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300 cursor-help"
+                              title={`Rolled back by: ${reservation.rolled_back_by || 'admin'}\nReason: ${reservation.rollback_reason || 'N/A'}`}
+                            >
+                              🔄 rolled back
+                            </span>
+                          ) : (
+                            <span className={`px-2 py-1 text-xs rounded-full ${getStatusBadge(reservation.status)}`}>{reservation.status}</span>
+                          )}
                         </td>
                         <td className="px-4 py-4">
                           {reservation.status === 'completed' ? (
@@ -327,11 +420,30 @@ const AdminReservations = () => {
                           ) : (<span className="text-sm text-gray-400">—</span>)}
                         </td>
                         <td className="px-4 py-4">
-                          {reservation.status === 'completed' && (
-                            <button onClick={() => openPaymentModal(reservation)} className="flex items-center gap-1 px-3 py-1.5 bg-soft-green text-white rounded-lg hover:bg-warm-orange transition text-sm" title={reservation.payment_status === 'paid' ? 'View Payments' : 'Record Payment'}>
-                              {reservation.payment_status === 'paid' ? (<><History size={14} />History</>) : (<><CreditCard size={14} />Payment</>)}
-                            </button>
-                          )}
+                          <div className="flex flex-wrap gap-1.5">
+                            {reservation.status === 'completed' && !isRolledBack(reservation) && (
+                              <button onClick={() => openPaymentModal(reservation)} className="flex items-center gap-1 px-3 py-1.5 bg-soft-green text-white rounded-lg hover:bg-warm-orange transition text-sm" title={reservation.payment_status === 'paid' ? 'View Payments' : 'Record Payment'}>
+                                {reservation.payment_status === 'paid' ? (<><History size={14} />History</>) : (<><CreditCard size={14} />Payment</>)}
+                              </button>
+                            )}
+                            {canRollback(reservation) && (
+                              <button
+                                onClick={() => openRollbackModal(reservation)}
+                                className="flex items-center gap-1 px-3 py-1.5 bg-red-500 text-white rounded-lg hover:bg-red-600 transition text-sm"
+                                title="Rollback this reservation"
+                              >
+                                <RotateCcw size={14} /> Rollback
+                              </button>
+                            )}
+                            {isRolledBack(reservation) && (
+                              <span
+                                className="flex items-center gap-1 px-3 py-1.5 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-sm cursor-help"
+                                title={`Reason: ${reservation.rollback_reason || 'N/A'}`}
+                              >
+                                <RotateCcw size={14} /> Rolled back
+                              </span>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -353,6 +465,13 @@ const AdminReservations = () => {
           </div>
         </main>
       </div>
+
+      {/* ✅ Toast notification */}
+      {toast && (
+        <div className={`fixed bottom-6 right-6 z-[60] px-5 py-3 rounded-lg shadow-lg text-white ${toast.type === 'success' ? 'bg-emerald-600' : 'bg-red-600'}`}>
+          {toast.message}
+        </div>
+      )}
 
       {/* Proof View Modal */}
       {showProofModal && selectedReservation && (
@@ -518,6 +637,86 @@ const AdminReservations = () => {
             <div className="mt-6 flex justify-end">
               <button onClick={closePaymentModal} className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition">Close</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ✅ Rollback Confirmation Modal */}
+      {showRollbackModal && rollbackReservation && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-lg w-full border border-red-200 dark:border-red-900">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-dark-text dark:text-white flex items-center gap-2">
+                <RotateCcw size={22} className="text-red-500" />
+                Rollback Reservation
+              </h2>
+              <button onClick={closeRollbackModal} className="text-light-text dark:text-gray-400 hover:text-dark-text dark:hover:text-white"><X size={20} /></button>
+            </div>
+
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-4 text-sm">
+              <p className="font-semibold text-red-800 dark:text-red-300 mb-2">⚠️ This action will:</p>
+              <ul className="text-red-700 dark:text-red-400 space-y-1 ml-4 list-disc">
+                <li>Cancel the reservation for <strong>{rollbackReservation.property_title}</strong></li>
+                <li>Set the property back to <strong>available</strong></li>
+                <li>Reverse the agent's commission</li>
+                <li>Cancel any pending commission releases</li>
+                <li>Notify all parties via email and in-app</li>
+              </ul>
+            </div>
+
+            <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3 mb-4 text-sm">
+              <p className="text-light-text dark:text-gray-400">Client: <span className="font-medium text-dark-text dark:text-white">{rollbackReservation.client_name}</span></p>
+              <p className="text-light-text dark:text-gray-400">Agent: <span className="font-medium text-dark-text dark:text-white">{rollbackReservation.agent_name}</span></p>
+              <p className="text-light-text dark:text-gray-400">Price: <span className="font-medium text-dark-text dark:text-white">{formatPrice(rollbackReservation.property_price)}</span></p>
+            </div>
+
+            {rollbackSuccess && (
+              <div className="bg-emerald-100 border border-emerald-400 text-emerald-700 px-4 py-3 rounded-lg mb-4 flex items-center gap-2">
+                <CheckCircle size={18} />{rollbackSuccess}
+              </div>
+            )}
+
+            {rollbackError && (
+              <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg mb-4 flex items-center gap-2">
+                <XCircle size={18} />{rollbackError}
+              </div>
+            )}
+
+            <form onSubmit={handleRollbackSubmit}>
+              <label className="block text-dark-text dark:text-white text-sm font-bold mb-2">
+                Reason for rollback <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                value={rollbackReason}
+                onChange={(e) => setRollbackReason(e.target.value)}
+                rows="3"
+                className="w-full px-4 py-2 border border-pastel-green dark:border-gray-600 rounded-lg focus:outline-none focus:border-soft-green bg-white dark:bg-gray-700 text-dark-text dark:text-white resize-none"
+                placeholder="e.g., Client can no longer afford the property"
+                required
+              />
+              <p className="text-xs text-light-text dark:text-gray-400 mt-1 mb-4">
+                Minimum 5 characters. This will be shown in the audit log and sent to the client and agent.
+              </p>
+
+              <div className="flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={closeRollbackModal}
+                  disabled={rollbackLoading}
+                  className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={rollbackLoading || !rollbackReason.trim() || rollbackReason.trim().length < 5}
+                  className="px-5 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition font-medium disabled:opacity-50 flex items-center gap-2"
+                >
+                  {rollbackLoading ? <Loader className="animate-spin" size={16} /> : <RotateCcw size={16} />}
+                  {rollbackLoading ? 'Rolling back...' : 'Confirm Rollback'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

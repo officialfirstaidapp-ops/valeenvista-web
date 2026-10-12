@@ -8,7 +8,8 @@ import {
   Briefcase,
   Clock,
   Banknote,
-  Eye
+  Eye,
+  RotateCcw
 } from 'lucide-react';
 import Sidebar from '../../components/Sidebar';
 import Navbar from '../../components/Navbar';
@@ -24,7 +25,7 @@ const AdminCommissions = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [pendingReleases, setPendingReleases] = useState([]);
   const [approvedUnpaid, setApprovedUnpaid] = useState([]);
-  const [agentReleaseStatus, setAgentReleaseStatus] = useState({}); // { agent_id: { pending, approved, paid } }
+  const [agentReleaseStatus, setAgentReleaseStatus] = useState({});
 
   useEffect(() => {
     fetchAll();
@@ -46,19 +47,17 @@ const AdminCommissions = () => {
       const data = response.data.commissions || response.data || [];
       setCommissions(data);
 
-      // ✅ Build a map: for each agent, what statuses exist in their releases?
       const statusMap = {};
       for (const c of data) {
         const agentId = c.agent_id;
         if (!agentId) continue;
         if (!statusMap[agentId]) {
-          statusMap[agentId] = { pending: false, approved: false, paid: false };
+          statusMap[agentId] = { pending: false, approved: false, paid: false, reversed: false };
         }
-        // Base on commission row status
         if (c.status === 'pending') statusMap[agentId].pending = true;
         if (c.status === 'paid') statusMap[agentId].paid = true;
+        if (c.status === 'reversed') statusMap[agentId].reversed = true;
 
-        // Also infer from totals: if released > 0, they have approved/paid releases
         const released = parseFloat(c.total_released || 0);
         const pendingAmt = parseFloat(c.total_pending || 0);
         const earned = parseFloat(c.total_earned || c.amount || 0);
@@ -68,7 +67,6 @@ const AdminCommissions = () => {
         if (pendingAmt > 0) statusMap[agentId].pending = true;
       }
 
-      // ✅ Also mark agents from pending/approved banners
       const pendingResp = await commissionAPI.getPendingReleases();
       const approvedResp = await commissionAPI.getApprovedUnpaidReleases();
       const allReleases = [
@@ -80,11 +78,12 @@ const AdminCommissions = () => {
         const agentId = r.agent_id;
         if (!agentId) continue;
         if (!statusMap[agentId]) {
-          statusMap[agentId] = { pending: false, approved: false, paid: false };
+          statusMap[agentId] = { pending: false, approved: false, paid: false, reversed: false };
         }
         if (r.status === 'pending') statusMap[agentId].pending = true;
         if (r.status === 'approved') statusMap[agentId].approved = true;
         if (r.status === 'paid') statusMap[agentId].paid = true;
+        if (r.status === 'cancelled') statusMap[agentId].reversed = true;
       }
 
       setAgentReleaseStatus(statusMap);
@@ -128,26 +127,30 @@ const AdminCommissions = () => {
         commissions: [],
         totalEarned: 0,
         totalReleased: 0,
-        totalPending: 0
+        totalPending: 0,
+        totalReversed: 0
       };
     }
     acc[key].commissions.push(c);
-    acc[key].totalEarned += parseFloat(c.total_earned || c.amount || 0);
-    acc[key].totalReleased += parseFloat(c.total_released || 0);
-    acc[key].totalPending += parseFloat(c.total_pending || c.amount || 0);
+
+    // ✅ Only sum non-reversed commissions toward totals
+    if (c.status !== 'reversed') {
+      acc[key].totalEarned += parseFloat(c.total_earned || c.amount || 0);
+      acc[key].totalReleased += parseFloat(c.total_released || 0);
+      acc[key].totalPending += parseFloat(c.total_pending || c.amount || 0);
+    } else {
+      acc[key].totalReversed += parseFloat(c.amount || 0);
+    }
     return acc;
   }, {});
 
   const agents = Object.values(groupedByAgent).filter((agent) => {
-    // Search filter
     const matchesSearch =
       !searchTerm ||
       agent.agent_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       agent.agent_email.toLowerCase().includes(searchTerm.toLowerCase());
 
     if (!matchesSearch) return false;
-
-    // Status filter (based on release statuses, not parent commission)
     if (filterStatus === 'all') return true;
 
     const statuses = agentReleaseStatus[agent.agent_id] || {};
@@ -157,7 +160,8 @@ const AdminCommissions = () => {
   const grandTotal = {
     earned: Object.values(groupedByAgent).reduce((s, a) => s + a.totalEarned, 0),
     released: Object.values(groupedByAgent).reduce((s, a) => s + a.totalReleased, 0),
-    pending: Object.values(groupedByAgent).reduce((s, a) => s + a.totalPending, 0)
+    pending: Object.values(groupedByAgent).reduce((s, a) => s + a.totalPending, 0),
+    reversed: Object.values(groupedByAgent).reduce((s, a) => s + a.totalReversed, 0)
   };
 
   const getStatusBadge = (status) => {
@@ -169,6 +173,8 @@ const AdminCommissions = () => {
       case 'pending':
         return 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300';
       case 'cancelled':
+        return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300';
+      case 'reversed':
         return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300';
       default:
         return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
@@ -210,7 +216,6 @@ const AdminCommissions = () => {
             </button>
           </div>
 
-          {/* Read-only notice */}
           <div className="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg p-3 mb-6 flex items-center gap-2 text-sm text-blue-800 dark:text-blue-300">
             <Eye size={16} />
             <span>
@@ -218,22 +223,25 @@ const AdminCommissions = () => {
             </span>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-6">
             <div className="bg-gradient-to-r from-soft-green to-emerald-600 rounded-lg shadow-md p-6 text-white">
               <p className="text-sm opacity-90">Total Earned</p>
-              <p className="text-3xl font-bold">{formatPrice(grandTotal.earned)}</p>
+              <p className="text-2xl font-bold">{formatPrice(grandTotal.earned)}</p>
             </div>
             <div className="bg-gradient-to-r from-emerald-600 to-teal-600 rounded-lg shadow-md p-6 text-white">
               <p className="text-sm opacity-90">Total Released</p>
-              <p className="text-3xl font-bold">{formatPrice(grandTotal.released)}</p>
+              <p className="text-2xl font-bold">{formatPrice(grandTotal.released)}</p>
             </div>
             <div className="bg-gradient-to-r from-warm-orange to-amber-500 rounded-lg shadow-md p-6 text-white">
               <p className="text-sm opacity-90">Total Pending</p>
-              <p className="text-3xl font-bold">{formatPrice(grandTotal.pending)}</p>
+              <p className="text-2xl font-bold">{formatPrice(grandTotal.pending)}</p>
+            </div>
+            <div className="bg-gradient-to-r from-red-500 to-rose-600 rounded-lg shadow-md p-6 text-white">
+              <p className="text-sm opacity-90">Total Reversed</p>
+              <p className="text-2xl font-bold">{formatPrice(grandTotal.reversed)}</p>
             </div>
           </div>
 
-          {/* Pending Releases — view only */}
           {pendingReleases.length > 0 && (
             <div className="bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800 rounded-lg p-4 mb-6">
               <div className="flex items-center gap-2 mb-3">
@@ -269,7 +277,6 @@ const AdminCommissions = () => {
             </div>
           )}
 
-          {/* Approved Unpaid — view only */}
           {approvedUnpaid.length > 0 && (
             <div className="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-6">
               <div className="flex items-center gap-2 mb-3">
@@ -312,7 +319,6 @@ const AdminCommissions = () => {
             </div>
           )}
 
-          {/* Filters */}
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 mb-6 border border-pastel-green dark:border-gray-700 flex flex-col md:flex-row gap-4">
             <input
               type="text"
@@ -330,6 +336,7 @@ const AdminCommissions = () => {
               <option value="pending">Has Pending Releases</option>
               <option value="approved">Has Approved (Unpaid) Releases</option>
               <option value="paid">Has Paid Releases</option>
+              <option value="reversed">Has Reversed Commissions</option>
             </select>
           </div>
 
@@ -395,6 +402,14 @@ const AdminCommissions = () => {
                           {formatPrice(agent.totalPending)}
                         </p>
                       </div>
+                      {agent.totalReversed > 0 && (
+                        <div className="text-right">
+                          <p className="text-xs text-light-text dark:text-gray-400">Reversed</p>
+                          <p className="font-bold text-red-600">
+                            -{formatPrice(agent.totalReversed)}
+                          </p>
+                        </div>
+                      )}
                     </div>
 
                     {expandedAgent === agent.agent_id ? (
@@ -413,32 +428,47 @@ const AdminCommissions = () => {
                         {agent.commissions.map((c) => (
                           <div
                             key={c.id}
-                            className="bg-white dark:bg-gray-800 rounded-lg p-3 flex items-center justify-between border border-pastel-green dark:border-gray-700"
+                            className={`rounded-lg p-3 flex items-center justify-between border ${
+                              c.status === 'reversed'
+                                ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800'
+                                : 'bg-white dark:bg-gray-800 border-pastel-green dark:border-gray-700'
+                            }`}
                           >
                             <div className="flex items-center gap-3 flex-1">
-                              <Briefcase
-                                size={16}
-                                className="text-soft-green flex-shrink-0"
-                              />
+                              {c.status === 'reversed' ? (
+                                <RotateCcw size={16} className="text-red-500 flex-shrink-0" />
+                              ) : (
+                                <Briefcase size={16} className="text-soft-green flex-shrink-0" />
+                              )}
                               <div className="flex-1 min-w-0">
-                                <p className="font-medium text-dark-text dark:text-white truncate">
+                                <p className={`font-medium truncate ${
+                                  c.status === 'reversed'
+                                    ? 'text-red-700 dark:text-red-300 line-through'
+                                    : 'text-dark-text dark:text-white'
+                                }`}>
                                   {c.property_title || 'Unknown Property'}
                                 </p>
                                 <p className="text-xs text-light-text dark:text-gray-400">
                                   {new Date(c.created_at).toLocaleDateString()}
+                                  {c.status === 'reversed' && c.reversal_reason && (
+                                    <span className="ml-1" title={c.reversal_reason}>
+                                      · Reason: {c.reversal_reason.substring(0, 40)}
+                                      {c.reversal_reason.length > 40 ? '...' : ''}
+                                    </span>
+                                  )}
                                 </p>
                               </div>
                             </div>
                             <div className="flex items-center gap-3">
-                              <p className="font-semibold text-dark-text dark:text-white">
+                              <p className={`font-semibold ${
+                                c.status === 'reversed'
+                                  ? 'text-red-600 dark:text-red-400 line-through'
+                                  : 'text-dark-text dark:text-white'
+                              }`}>
                                 {formatPrice(c.amount)}
                               </p>
-                              <span
-                                className={`px-2 py-0.5 text-xs rounded-full ${getStatusBadge(
-                                  c.status
-                                )}`}
-                              >
-                                {c.status}
+                              <span className={`px-2 py-0.5 text-xs rounded-full ${getStatusBadge(c.status)}`}>
+                                {c.status === 'reversed' ? '🔄 reversed' : c.status}
                               </span>
                             </div>
                           </div>
