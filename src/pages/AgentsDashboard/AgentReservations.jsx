@@ -31,7 +31,7 @@ const AgentReservations = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [filter, setFilter] = useState('all');
-  const [showArchived, setShowArchived] = useState(false);   // ✅ NEW
+  const [showArchived, setShowArchived] = useState(false);
   const [processingReservation, setProcessingReservation] = useState(null);
   const [uploading, setUploading] = useState(null);
   const [showProofModal, setShowProofModal] = useState(false);
@@ -40,8 +40,6 @@ const AgentReservations = () => {
   const [loadingAttachments, setLoadingAttachments] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
 
-  const [startingCall, setStartingCall] = useState(null);
-
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [paymentReservation, setPaymentReservation] = useState(null);
   const [paymentHistory, setPaymentHistory] = useState([]);
@@ -49,13 +47,13 @@ const AgentReservations = () => {
 
   useEffect(() => {
     fetchReservations();
-  }, [showArchived]);   // ✅ Refetch when toggle changes
+  }, [showArchived]);
 
   const fetchReservations = async () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await reservationAPI.getAgentReservations(showArchived);   // ✅ Pass toggle
+      const response = await reservationAPI.getAgentReservations(showArchived);
       setReservations(response.data.reservations || []);
     } catch (err) {
       console.error('Error fetching reservations:', err);
@@ -83,7 +81,6 @@ const AgentReservations = () => {
       setProcessingReservation(null);
     }
   };
-
 
   const handleFileUpload = async (reservationId, files) => {
     setUploading(reservationId);
@@ -231,6 +228,13 @@ const AgentReservations = () => {
     return <FileText size={16} className="text-gray-500" />;
   };
 
+  // ✅ Helper: build correct file URL (works for Cloudinary AND old paths)
+  const getFileUrl = (path) => {
+    if (!path) return '#';
+    if (path.startsWith('http')) return path;   // Cloudinary full URL
+    return `https://valeenvista-backend.onrender.com${path}`;  // Old local path
+  };
+
   const pendingCount = reservations.filter(r => r.status === 'pending').length;
   const filteredReservations = getFilteredReservations();
 
@@ -266,7 +270,6 @@ const AgentReservations = () => {
             </button>
           </div>
 
-          {/* ✅ Filters + Show Archived toggle */}
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 mb-6 border border-pastel-green dark:border-gray-700">
             <div className="flex flex-wrap items-center gap-4">
               <Filter size={20} className="text-light-text dark:text-gray-400" />
@@ -280,7 +283,6 @@ const AgentReservations = () => {
               </select>
               <span className="text-sm text-light-text dark:text-gray-400">Showing {filteredReservations.length} reservations</span>
 
-              {/* ✅ Show archived toggle */}
               <label className="flex items-center gap-2 cursor-pointer ml-auto">
                 <input
                   type="checkbox"
@@ -365,7 +367,6 @@ const AgentReservations = () => {
                         )}
                       </div>
 
-                      {/* Hide action buttons on rolled-back reservations */}
                       {!isRolledBack && (
                         <div className="flex flex-wrap gap-2 flex-shrink-0">
                           {reservation.status === 'pending' && (
@@ -468,7 +469,7 @@ const AgentReservations = () => {
                       </div>
                     </div>
                     <div className="flex gap-2">
-                      <a href={`https://valeenvista-backend.onrender.com${attachment.filepath}`} target="_blank" rel="noopener noreferrer" className="p-1 text-blue-500 hover:text-blue-700 transition"><Eye size={18} /></a>
+                      <a href={getFileUrl(attachment.filepath)} target="_blank" rel="noopener noreferrer" className="p-1 text-blue-500 hover:text-blue-700 transition"><Eye size={18} /></a>
                       <button onClick={() => handleDeleteAttachment(attachment.id)} className="p-1 text-red-500 hover:text-red-700 transition"><Trash2 size={18} /></button>
                     </div>
                   </div>
