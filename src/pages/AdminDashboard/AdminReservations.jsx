@@ -43,7 +43,6 @@ const AdminReservations = () => {
   const [successMessage, setSuccessMessage] = useState('');
   const [paymentError, setPaymentError] = useState('');
 
-  // ✅ NEW: Rollback state
   const [showRollbackModal, setShowRollbackModal] = useState(false);
   const [rollbackReservation, setRollbackReservation] = useState(null);
   const [rollbackReason, setRollbackReason] = useState('');
@@ -60,7 +59,6 @@ const AdminReservations = () => {
     fetchReservations();
   }, [pagination.page, filter]);
 
-  // ✅ Auto-hide toast after 4 seconds
   useEffect(() => {
     if (toast) {
       const timer = setTimeout(() => setToast(null), 4000);
@@ -178,7 +176,6 @@ const AdminReservations = () => {
     }
   };
 
-  // ✅ NEW: Rollback handlers
   const openRollbackModal = (reservation) => {
     setRollbackReservation(reservation);
     setRollbackReason('');
@@ -214,7 +211,6 @@ const AdminReservations = () => {
 
       setRollbackSuccess(response.data.message || 'Rolled back successfully');
 
-      // Close modal after 1.5s and show toast
       setTimeout(() => {
         closeRollbackModal();
         setToast({
@@ -282,7 +278,13 @@ const AdminReservations = () => {
     return <FileText size={16} className="text-gray-500" />;
   };
 
-  // ✅ Check if rollback is allowed
+  // ✅ NEW: Cloudinary-aware URL helper
+  const getFileUrl = (path) => {
+    if (!path) return '#';
+    if (path.startsWith('http')) return path;
+    return `https://valeenvista-backend.onrender.com${path}`;
+  };
+
   const canRollback = (reservation) => {
     return (
       (reservation.status === 'completed' || reservation.payment_status === 'paid') &&
@@ -466,7 +468,6 @@ const AdminReservations = () => {
         </main>
       </div>
 
-      {/* ✅ Toast notification */}
       {toast && (
         <div className={`fixed bottom-6 right-6 z-[60] px-5 py-3 rounded-lg shadow-lg text-white ${toast.type === 'success' ? 'bg-emerald-600' : 'bg-red-600'}`}>
           {toast.message}
@@ -507,7 +508,7 @@ const AdminReservations = () => {
                         <p className="text-xs text-light-text dark:text-gray-400">Uploaded by: {attachment.uploaded_by_name || 'Agent'} · {formatDate(attachment.created_at)}</p>
                       </div>
                     </div>
-                    <a href={`https://valeenvista-backend.onrender.com${attachment.filepath}`} target="_blank" rel="noopener noreferrer" className="p-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition text-sm flex items-center gap-1">
+                    <a href={getFileUrl(attachment.filepath)} target="_blank" rel="noopener noreferrer" className="p-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition text-sm flex items-center gap-1">
                       <Eye size={14} />View
                     </a>
                   </div>
@@ -641,7 +642,7 @@ const AdminReservations = () => {
         </div>
       )}
 
-      {/* ✅ Rollback Confirmation Modal */}
+      {/* Rollback Confirmation Modal */}
       {showRollbackModal && rollbackReservation && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-lg w-full border border-red-200 dark:border-red-900">
